@@ -36,33 +36,6 @@
                 </div>
                 <!-- Список контактов -->
                 <div class="contacts active" id="contactsList">
-                    <div class="contact active">
-                        <div class="avatar"></div>
-                        <span class="name">Mom</span>
-                        <span class="status online"></span>
-                    </div>
-                    <div class="contact">
-                        <div class="avatar"></div>
-                        <span class="name">Dad</span>
-                        <span class="status online"></span>
-                    </div>
-                    <div class="contact">
-                        <div class="avatar"></div>
-                        <span class="name">Mark Zuckerberg</span>
-                    </div>
-                    <div class="contact">
-                        <div class="avatar"></div>
-                        <span class="name">Ilon Mask</span>
-                        <span class="status online"></span>
-                    </div>
-                    <div class="contact">
-                        <div class="avatar"></div>
-                        <span class="name">Emil Bilgaziev</span>
-                    </div>
-                    <div class="contact">
-                        <div class="avatar"></div>
-                        <span class="name">Sadyr Japarov</span>
-                    </div>
                 </div>
                 <!-- Список групп -->
                 <div class="groups" id="groupsList">
@@ -207,6 +180,31 @@
 
             // Call loadGroups on page load
             loadGroups();
+
+            // Fetch and display registered users
+            function loadUsers() {
+                fetch('/api/users')
+                    .then(response => response.json())
+                    .then(data => {
+                        const contactsList = document.getElementById('contactsList');
+                        contactsList.innerHTML = ''; // Clear existing contacts
+                        if (data.users) {
+                            data.users.forEach(user => {
+                                const contactDiv = document.createElement('div');
+                                contactDiv.className = 'contact';
+                                contactDiv.innerHTML = `
+                                    <div class="avatar"></div>
+                                    <span class="name">${user}</span>
+                                `;
+                                contactsList.appendChild(contactDiv);
+                            });
+                        }
+                    })
+                    .catch(error => console.error('Error loading users:', error));
+            }
+
+            // Call loadUsers on page load
+            loadUsers();
         });
     </script>
 </body>

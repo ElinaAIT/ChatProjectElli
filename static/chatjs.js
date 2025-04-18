@@ -69,77 +69,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (action === 'my-profile') {
                 settingsMain.classList.remove('active');
                 settingsProfile.classList.add('active');
-            } else if (action === 'create-group') {
-                const modal = document.createElement('div');
-                modal.className = 'modal';
-                modal.innerHTML = `
-                    <div class="modal-content">
-                        <h3>Создать группу</h3>
-                        <input type="text" id="groupNameInput" placeholder="Название группы">
-                        <div id="userSelection">
-                            <h4>Выберите участников:</h4>
-                        </div>
-                        <button id="createGroupButton">Создать</button>
-                        <button id="closeModalButton">Закрыть</button>
-                    </div>
-                `;
-                document.body.appendChild(modal);
-
-                // Fetch and display registered users
-                fetch('/api/users')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.users) {
-                            const userSelection = document.getElementById('userSelection');
-                            data.users.forEach((user, index) => {
-                                const userCheckbox = document.createElement('div');
-                                userCheckbox.innerHTML = `
-                                    <input type="checkbox" id="user_${index}" value="${user.id}">
-                                    <label for="user_${index}">${user.username}</label>
-                                `;
-                                userSelection.appendChild(userCheckbox);
-                            });
-                        }
-                    });
-
-                // Close modal
-                document.getElementById('closeModalButton').addEventListener('click', () => {
-                    modal.remove();
-                });
-
-                // Create group
-                document.getElementById('createGroupButton').addEventListener('click', () => {
-                    const groupName = document.getElementById('groupNameInput').value.trim();
-                    const selectedUsers = Array.from(document.querySelectorAll('#userSelection input:checked'))
-                        .map(checkbox => checkbox.value);
-
-                    if (!groupName || selectedUsers.length === 0) {
-                        alert('Введите название группы и выберите участников');
-                        return;
-                    }
-
-                    fetch('/api/create-group', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ group_name: groupName, user_ids: selectedUsers }),
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (response.ok) {
-                                alert(data.message);
-                                modal.remove();
-                            } else {
-                                alert(data.error);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error creating group:', error);
-                            alert('Ошибка сервера');
-                        });
-                });
             }
+            // Другие действия (create-group, exit) можно добавить здесь
         }
     });
 
@@ -452,30 +383,4 @@ document.addEventListener('DOMContentLoaded', () => {
             messagesStorage[currentTarget].splice(messageIndex, 1);
         }
     });
-
-    // Fetch and display registered users
-    function loadUsers() {
-        fetch('/api/users')
-            .then(response => response.json())
-            .then(data => {
-                if (data.users) {
-                    const contactsList = document.getElementById('contactsList');
-                    contactsList.innerHTML = ''; // Clear existing contacts
-                    data.users.forEach(user => {
-                        const contactDiv = document.createElement('div');
-                        contactDiv.className = 'contact';
-                        contactDiv.innerHTML = `
-                            <div class="avatar"></div>
-                            <span class="name">${user}</span>
-                            <span class="status online"></span>
-                        `;
-                        contactsList.appendChild(contactDiv);
-                    });
-                }
-            })
-            .catch(error => console.error('Error loading users:', error));
-    }
-
-    // Call loadUsers on page load
-    loadUsers();
 });
