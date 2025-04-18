@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CHATTTT</title>
-    <link rel="stylesheet" href="chatcss.css">
+    <link rel="stylesheet" href="\static\chatcss.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 
@@ -66,30 +66,7 @@
                 </div>
                 <!-- Список групп -->
                 <div class="groups" id="groupsList">
-                    <div class="group">
-                        <div class="avatar"></div>
-                        <span class="name">Family</span>
-                    </div>
-                    <div class="group active">
-                        <div class="avatar"></div>
-                        <span class="name">AIT-CS</span>
-                    </div>
-                    <div class="group">
-                        <div class="avatar"></div>
-                        <span class="name">Codes</span>
-                    </div>
-                    <div class="group">
-                        <div class="avatar"></div>
-                        <span class="name">Friends</span>
-                    </div>
-                    <div class="group">
-                        <div class="avatar"></div>
-                        <span class="name">Girls</span>
-                    </div>
-                    <div class="group">
-                        <div class="avatar"></div>
-                        <span class="name">Group-24</span>
-                    </div>
+                    <!-- Groups will be dynamically loaded here -->
                 </div>
             </div>
             <div class="chat-area">
@@ -203,7 +180,35 @@
             </div>
         </div>
     </div>
-    <script src="chatjs.js"></script>
+    <script src="\static\chatjs.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Fetch and display groups
+            function loadGroups() {
+                fetch('/api/groups')
+                    .then(response => response.json())
+                    .then(data => {
+                        const groupsList = document.getElementById('groupsList');
+                        groupsList.innerHTML = ''; // Clear existing groups
+                        if (data.groups) {
+                            data.groups.forEach(group => {
+                                const groupDiv = document.createElement('div');
+                                groupDiv.className = 'group';
+                                groupDiv.innerHTML = `
+                                    <div class="avatar"></div>
+                                    <span class="name">${group.name}</span>
+                                `;
+                                groupsList.appendChild(groupDiv);
+                            });
+                        }
+                    })
+                    .catch(error => console.error('Error loading groups:', error));
+            }
+
+            // Call loadGroups on page load
+            loadGroups();
+        });
+    </script>
 </body>
 
 </html>
