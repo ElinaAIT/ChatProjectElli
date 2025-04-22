@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CHATTTT</title>
-    <link rel="stylesheet" href="\static\chatcss.css">
+    <link rel="stylesheet" href="/static/chatcss.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 
@@ -34,13 +34,11 @@
                     <input type="text" placeholder="Поиск..." id="searchInput">
                     <i class="fas fa-search"></i>
                 </div>
-                <!-- Список контактов -->
-                <div class="contacts active" id="contactsList">
+                <div class="contacts active" id="contactsList"></div>
+                <div class="create-group-button" id="createGroupButton" style="display: none;">
+                    <button>Создать группу</button>
                 </div>
-                <!-- Список групп -->
-                <div class="groups" id="groupsList">
-                    <!-- Groups will be dynamically loaded here -->
-                </div>
+                <div class="groups" id="groupsList"></div>
             </div>
             <div class="chat-area">
                 <div class="chat-header">
@@ -49,32 +47,20 @@
                         <span class="name">Mom</span>
                         <span class="status">онлайн</span>
                     </div>
+                    <button class="create-group-chat" id="createGroupChatButton" title="Создать группу">
+                        <i class="fas fa-users"></i>
+                    </button>
                 </div>
                 <div class="chat-messages" id="chatMessages">
                     <div class="message sent">
                         <div class="message-content">
-
-                            <div class="message-menu">
-
-                            </div>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="message sent">
-                        <div class="message-content">
-
-                            <span class="message-actions">
-                                <div class="message-menu">
-
-                                </div>
-                            </span>
+                            <div class="message-menu"></div>
                         </div>
                     </div>
                 </div>
                 <div class="chat-input">
                     <button class="emoji-button"><i class="fas fa-smile"></i></button>
                     <div class="emoji-panel" id="emojiPanel">
-                        <!-- Смайлы -->
                         <div class="emoji-category">
                             <span class="emoji-title">Смайлы</span>
                             <span class="emoji" data-emoji="😊">😊</span>
@@ -85,14 +71,12 @@
                             <span class="emoji" data-emoji="🤓">🤓</span>
                             <span class="emoji" data-emoji="😇">😇</span>
                         </div>
-                        <!-- Жесты -->
                         <div class="emoji-category">
                             <span class="emoji-title">Жесты</span>
                             <span class="emoji" data-emoji="👍">👍</span>
                             <span class="emoji" data-emoji="👊">👊</span>
                             <span class="emoji" data-emoji="✌️">✌️</span>
                         </div>
-                        <!-- Объекты -->
                         <div class="emoji-category">
                             <span class="emoji-title">Объекты</span>
                             <span class="emoji" data-emoji="🔥">🔥</span>
@@ -106,7 +90,6 @@
                             <span class="emoji" data-emoji="📚">📚</span>
                             <span class="emoji" data-emoji="✈️">✈️</span>
                         </div>
-                        <!-- Животные -->
                         <div class="emoji-category">
                             <span class="emoji-title">Животные</span>
                             <span class="emoji" data-emoji="🐶">🐶</span>
@@ -125,9 +108,7 @@
                     <button id="sendButton"><i class="fas fa-paper-plane"></i></button>
                 </div>
             </div>
-            <!-- Меню настроек -->
             <div class="settings-menu" id="settingsMenu">
-                <!-- Основное меню настроек -->
                 <div class="settings-main active">
                     <div class="settings-header">
                         <span>Settings</span>
@@ -136,7 +117,6 @@
                     <div class="settings-item" data-action="create-group">Create Group</div>
                     <div class="settings-item" data-action="exit">Exit</div>
                 </div>
-                <!-- Меню профиля -->
                 <div class="settings-profile">
                     <div class="settings-header">
                         <i class="fas fa-arrow-left back-button"></i>
@@ -151,18 +131,35 @@
                     <div class="settings-item">information</div>
                 </div>
             </div>
+            <div class="modal" id="groupModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <span>Создать группу</span>
+                        <i class="fas fa-times modal-close"></i>
+                    </div>
+                    <div class="modal-body">
+                        <label for="groupNameInput">Название группы:</label>
+                        <input type="text" id="groupNameInput" placeholder="Введите название">
+                        <label>Участники:</label>
+                        <div class="contacts-list" id="groupContactsList"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="createGroupFinal">Создать</button>
+                        <button class="modal-close">Отмена</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    <script src="\static\chatjs.js"></script>
+    <script src="/static/chatjs.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Fetch and display groups
             function loadGroups() {
                 fetch('/api/groups')
                     .then(response => response.json())
                     .then(data => {
                         const groupsList = document.getElementById('groupsList');
-                        groupsList.innerHTML = ''; // Clear existing groups
+                        groupsList.innerHTML = '';
                         if (data.groups) {
                             data.groups.forEach(group => {
                                 const groupDiv = document.createElement('div');
@@ -178,21 +175,18 @@
                     .catch(error => console.error('Error loading groups:', error));
             }
 
-            // Call loadGroups on page load
-            loadGroups();
-
-            // Fetch and display registered users
             function loadUsers() {
                 fetch('/api/users')
                     .then(response => response.json())
                     .then(data => {
                         const contactsList = document.getElementById('contactsList');
-                        contactsList.innerHTML = ''; // Clear existing contacts
+                        contactsList.innerHTML = '';
                         if (data.users) {
                             data.users.forEach(user => {
                                 const contactDiv = document.createElement('div');
                                 contactDiv.className = 'contact';
                                 contactDiv.innerHTML = `
+                                    <input type="checkbox" class="contact-checkbox" style="display: none;" data-username="${user}">
                                     <div class="avatar"></div>
                                     <span class="name">${user}</span>
                                 `;
@@ -203,7 +197,7 @@
                     .catch(error => console.error('Error loading users:', error));
             }
 
-            // Call loadUsers on page load
+            loadGroups();
             loadUsers();
         });
     </script>

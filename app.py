@@ -2,11 +2,10 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
 import smtplib
+from email.mime.text import MIMEText
 import random
 import string
-from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
@@ -34,6 +33,21 @@ def init_db():
         expires_at TIMESTAMP NOT NULL
     )''')
 
+    # Таблица групп
+    c.execute('''CREATE TABLE IF NOT EXISTS groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL
+    )''')
+
+    # Таблица участников групп
+    c.execute('''CREATE TABLE IF NOT EXISTS group_members (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        group_id INTEGER NOT NULL,
+        username TEXT NOT NULL,
+        FOREIGN KEY (group_id) REFERENCES groups(id),
+        FOREIGN KEY (username) REFERENCES users(username)
+    )''')
+
     conn.commit()
     conn.close()
 
@@ -53,21 +67,14 @@ def send_email(to_email, code):
     msg['To'] = to_email
 
     try:
-        print(f"Подключение к SMTP серверу: {smtp_server}:{smtp_port}")
         server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
         server.starttls()
-        print("Начало аутентификации...")
         server.login(smtp_user, smtp_password)
-        print("Аутентификация успешна. Отправка письма...")
         server.sendmail(smtp_user, to_email, msg.as_string())
         server.quit()
-        print(f"Email успешно отправлен на {to_email}")
         return True
-    except smtplib.SMTPAuthenticationError as e:
-        print(f"Ошибка аутентификации SMTP: Проверьте email и пароль. Детали: {e}")
-        return False
     except Exception as e:
-        print(f"Ошибка при отправке email: {e}, Тип ошибки: {type(e).__name__}")
+        print(f"Ошибка при отправке email: {e}")
         return False
 
 @app.route('/')
@@ -93,7 +100,6 @@ def register():
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-        print(f"Регистрация пользователя: {username}, {email}")
         c.execute('INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
                   (username, email, hashed_password))
         conn.commit()
@@ -111,8 +117,10 @@ def login():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
+
     if not username or not password:
         return jsonify({'error': 'Имя пользователя и пароль обязательны'}), 400
+
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -130,31 +138,29 @@ def login():
 def request_reset():
     data = request.get_json()
     email = data.get('email')
+
     if not email:
         return jsonify({'error': 'Email обязателен'}), 400
+
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-        print(f"Проверка email: {email}")
         c.execute('SELECT email FROM users WHERE LOWER(email) = LOWER(?)', (email,))
         user = c.fetchone()
         if not user:
             conn.close()
-            print(f"Email не найден: {email}")
             return jsonify({'error': 'Пользователь с таким email не найден'}), 404
+
         code = ''.join(random.choices(string.digits, k=6))
         expires_at = datetime.now() + timedelta(minutes=10)
-        print(f"Сохранение кода сброса для email: {email}, код: {code}")
         c.execute('INSERT INTO reset_codes (email, code, expires_at) VALUES (?, ?, ?)',
                   (email, code, expires_at))
         conn.commit()
         conn.close()
-        print(f"Отправка email на: {email}")
+
         if send_email(email, code):
-            print(f"Код успешно отправлен на: {email}")
             return jsonify({'message': 'Код отправлен на ваш email'}), 200
         else:
-            print(f"Не удалось отправить email на: {email}")
             return jsonify({'error': 'Ошибка при отправке email'}), 500
     except Exception as e:
         print(f"Ошибка в /api/request-reset: {e}")
@@ -166,8 +172,10 @@ def reset_password():
     email = data.get('email')
     code = data.get('code')
     new_password = data.get('new_password')
+
     if not email or not code or not new_password:
         return jsonify({'error': 'Все поля обязательны'}), 400
+
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -176,14 +184,17 @@ def reset_password():
         if not reset_data:
             conn.close()
             return jsonify({'error': 'Код не найден'}), 400
+
         stored_code, expires_at = reset_data
         expires_at = datetime.strptime(expires_at, '%Y-%m-%d %H:%M:%S.%f')
         if datetime.now() > expires_at:
             conn.close()
             return jsonify({'error': 'Код истек'}), 400
+
         if code != stored_code:
             conn.close()
             return jsonify({'error': 'Неверный код'}), 400
+
         hashed_password = generate_password_hash(new_password, method='pbkdf2:sha256')
         c.execute('UPDATE users SET password = ? WHERE email = ?', (hashed_password, email))
         c.execute('DELETE FROM reset_codes WHERE email = ?', (email,))
@@ -207,5 +218,77 @@ def get_users():
         print(f"Ошибка при получении списка пользователей: {e}")
         return jsonify({'error': 'Ошибка сервера'}), 500
 
+@app.route('/api/groups', methods=['GET'])
+def get_groups():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('SELECT id, name FROM groups')
+        groups = [{'id': row[0], 'name': row[1]} for row in c.fetchall()]
+        conn.close()
+        return jsonify({'groups': groups}), 200
+    except Exception as e:
+        print(f"Ошибка при получении списка групп: {e}")
+        return jsonify({'error': 'Ошибка сервера'}), 500
+
+@app.route('/api/groups', methods=['POST'])
+def create_group():
+    data = request.get_json()
+    print(f"Получен запрос на создание группы: {data}")
+    name = data.get('name')
+    members = data.get('members', [])
+
+    if not name:
+        print("Ошибка: Название группы не указано")
+        return jsonify({'success': False, 'error': 'Название группы обязательно'}), 400
+    if not members:
+        print("Ошибка: Участники не указаны")
+        return jsonify({'success': False, 'error': 'Должен быть хотя бы один участник'}), 400
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+
+        # Проверка существования пользователей (игнорируем регистр)
+        print(f"Проверка пользователей: {members}")
+        placeholders = ','.join('?' * len(members))
+        query = f'SELECT username FROM users WHERE LOWER(username) IN ({placeholders})'
+        print(f"Выполняем SQL-запрос: {query} с параметрами {members}")
+        # Приводим имена в members к нижнему регистру для сравнения
+        c.execute(query, [m.lower() for m in members])
+        valid_members = [row[0] for row in c.fetchall()]
+        print(f"Найденные пользователи: {valid_members}")
+
+        # Проверяем, какие пользователи не найдены
+        members_lower = [m.lower() for m in members]
+        invalid_members = [m for m in members if m.lower() not in [vm.lower() for vm in valid_members]]
+        if invalid_members:
+            print(f"Ошибка: Пользователи не найдены: {invalid_members}")
+            conn.close()
+            return jsonify({'success': False, 'error': f'Пользователи не найдены: {", ".join(invalid_members)}'}), 400
+
+        # Создание группы
+        print(f"Создание группы: {name}")
+        c.execute('INSERT INTO groups (name) VALUES (?)', (name,))
+        group_id = c.lastrowid
+        print(f"ID новой группы: {group_id}")
+
+        # Добавление участников
+        print(f"Добавление участников: {valid_members}")
+        for member in valid_members:
+            c.execute('INSERT INTO group_members (group_id, username) VALUES (?, ?)', (group_id, member))
+
+        conn.commit()
+        conn.close()
+        print(f"Группа успешно создана: {name}")
+        return jsonify({'success': True}), 201
+    except sqlite3.IntegrityError as e:
+        conn.close()
+        print(f"Ошибка базы данных: {e}")
+        return jsonify({'success': False, 'error': 'Группа с таким названием уже существует'}), 400
+    except Exception as e:
+        conn.close()
+        print(f"Ошибка при создании группы: {e}")
+        return jsonify({'success': False, 'error': 'Ошибка сервера'}), 500
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

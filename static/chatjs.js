@@ -15,53 +15,125 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsMenu = document.getElementById('settingsMenu');
     const settingsMain = settingsMenu.querySelector('.settings-main');
     const settingsProfile = settingsMenu.querySelector('.settings-profile');
+    const createGroupButton = document.getElementById('createGroupButton');
+    const createGroupChatButton = document.getElementById('createGroupChatButton');
+    const groupModal = document.getElementById('groupModal');
+    const groupNameInput = document.getElementById('groupNameInput');
+    const groupContactsList = document.getElementById('groupContactsList');
+    const createGroupFinal = document.getElementById('createGroupFinal');
 
-    // Хранилища сообщений
     const messagesByContact = {};
     const messagesByGroup = {};
-
-    // Текущий режим (contacts или groups)
     let currentMode = 'contacts';
     let currentContact = 'Mom';
     let currentGroup = 'AIT-CS';
 
-    // Переключение бокового меню
-    menuToggle.addEventListener('click', () => {
-        sidebarMenu.classList.toggle('active');
+    function escapeHTML(str) {
+        return str.replace(/[&<>"']/g, match => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[match]));
+    }
+
+    function loadContactsForGroup() {
+        fetch('/api/users')
+            .then(response => response.json())
+            .then(data => {
+                groupContactsList.innerHTML = '';
+                if (data.users) {
+                    data.users.forEach(user => {
+                        const contactDiv = document.createElement('div');
+                        contactDiv.className = 'contact';
+                        contactDiv.innerHTML = `
+                            <input type="checkbox" class="contact-checkbox" data-username="${user}">
+                            <div class="avatar"></div>
+                            <span class="name">${user}</span>
+                        `;
+                        groupContactsList.appendChild(contactDiv);
+                    });
+                }
+            })
+            .catch(error => console.error('Error loading users for group:', error));
+    }
+
+    function openGroupModal() {
+        groupModal.style.display = 'flex';
+        groupNameInput.value = '';
+        loadContactsForGroup();
+    }
+
+    function closeGroupModal() {
+        groupModal.style.display = 'none';
+    }
+
+    function createGroup() {
+        const groupName = groupNameInput.value.trim();
+        const selectedUsers = Array.from(groupContactsList.querySelectorAll('.contact-checkbox:checked'))
+            .map(checkbox => checkbox.dataset.username);
+
+        if (!groupName) {
+            alert('Введите название группы');
+            return;
+        }
+        if (selectedUsers.length === 0) {
+            alert('Выберите хотя бы одного участника');
+            return;
+        }
+
+        fetch('/api/groups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: groupName, members: selectedUsers })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    closeGroupModal();
+                    loadGroups();
+                } else {
+                    alert('Не удалось создать группу');
+                }
+            })
+            .catch(error => {
+                console.error('Error creating group:', error);
+                alert('Ошибка при создании группы');
+            });
+    }
+
+    createGroupButton.addEventListener('click', openGroupModal);
+    createGroupChatButton.addEventListener('click', openGroupModal);
+    createGroupFinal.addEventListener('click', createGroup);
+    groupModal.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-close')) {
+            closeGroupModal();
+        }
     });
 
-    // Показ/скрытие меню настроек
+    menuToggle.addEventListener('click', () => {
+        sidebarMenu.classList.toggle('active');
+        document.querySelector('.menu-items').classList.toggle('active');
+    });
+
     settingsTab.addEventListener('click', (e) => {
-        e.stopPropagation(); // Предотвращаем закрытие при клике на иконку
+        e.stopPropagation();
         if (settingsMenu.classList.contains('active')) {
             settingsMenu.classList.remove('active');
             settingsTab.classList.remove('active');
-            // Возвращаем основное меню при закрытии
             settingsMain.classList.add('active');
             settingsProfile.classList.remove('active');
         } else {
-            // Позиционируем меню рядом с иконкой
             const rect = settingsTab.getBoundingClientRect();
-            settingsMenu.style.top = `${rect.bottom + window.scrollY + 5}px`; // Чуть ниже иконки
-            settingsMenu.style.left = `${rect.left + window.scrollX}px`; // Выравниваем по левому краю
+            settingsMenu.style.top = `${rect.bottom + window.scrollY + 5}px`;
+            settingsMenu.style.left = `${rect.left + window.scrollX}px`;
             settingsMenu.classList.add('active');
             settingsTab.classList.add('active');
-            closeAllMenus(); // Закрываем другие меню, если открыты
+            closeAllMenus();
         }
     });
 
-    // Закрытие меню настроек при клике вне его
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.settings-tab') && !e.target.closest('.settings-menu')) {
-            settingsMenu.classList.remove('active');
-            settingsTab.classList.remove('active');
-            // Возвращаем основное меню при закрытии
-            settingsMain.classList.add('active');
-            settingsProfile.classList.remove('active');
-        }
-    });
-
-    // Обработка кликов по пунктам меню настроек
     settingsMain.addEventListener('click', (e) => {
         const settingsItem = e.target.closest('.settings-item');
         if (settingsItem) {
@@ -69,12 +141,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (action === 'my-profile') {
                 settingsMain.classList.remove('active');
                 settingsProfile.classList.add('active');
+            } else if (action === 'create-group') {
+                openGroupModal();
+                settingsMenu.classList.remove('active');
+                settingsTab.classList.remove('active');
             }
-            // Другие действия (create-group, exit) можно добавить здесь
         }
     });
 
-    // Кнопка "назад" в профиле
     settingsProfile.addEventListener('click', (e) => {
         const backButton = e.target.closest('.back-button');
         if (backButton) {
@@ -83,11 +157,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Переключение на чат контактов
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.settings-tab') && !e.target.closest('.settings-menu')) {
+            settingsMenu.classList.remove('active');
+            settingsTab.classList.remove('active');
+            settingsMain.classList.add('active');
+            settingsProfile.classList.remove('active');
+        }
+    });
+
     contactsTab.addEventListener('click', () => {
         currentMode = 'contacts';
         contactsList.classList.add('active');
         groupsList.classList.remove('active');
+        createGroupButton.style.display = 'none';
         contactsTab.classList.add('active');
         groupsTab.classList.remove('active');
         settingsMenu.classList.remove('active');
@@ -97,11 +180,11 @@ document.addEventListener('DOMContentLoaded', () => {
         loadChat(currentContact, messagesByContact);
     });
 
-    // Переключение на чат групп
     groupsTab.addEventListener('click', () => {
         currentMode = 'groups';
         groupsList.classList.add('active');
         contactsList.classList.remove('active');
+        createGroupButton.style.display = 'block';
         groupsTab.classList.add('active');
         contactsTab.classList.remove('active');
         settingsMenu.classList.remove('active');
@@ -111,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
         loadChat(currentGroup, messagesByGroup);
     });
 
-    // Показ/скрытие панели эмодзи
     emojiButton.addEventListener('click', () => {
         if (emojiPanel.classList.contains('active')) {
             emojiPanel.style.opacity = '0';
@@ -124,17 +206,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Добавление эмодзи в поле ввода
     emojiPanel.addEventListener('click', (e) => {
         const emoji = e.target.closest('.emoji');
         if (emoji) {
             messageInput.value += emoji.dataset.emoji;
             messageInput.focus();
-            // Панель эмодзи НЕ закрывается при выборе эмодзи
         }
     });
 
-    // Закрытие панели эмодзи при клике вне её
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.emoji-panel') && !e.target.closest('.emoji-button')) {
             if (emojiPanel.classList.contains('active')) {
@@ -146,7 +225,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Поиск
     searchInput.addEventListener('input', () => {
         const searchTerm = searchInput.value.toLowerCase();
         if (currentMode === 'contacts') {
@@ -164,7 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Переключение чатов (контакты)
     contactsList.addEventListener('click', (e) => {
         if (currentMode !== 'contacts') return;
         const contact = e.target.closest('.contact');
@@ -177,7 +254,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Переключение чатов (группы)
     groupsList.addEventListener('click', (e) => {
         if (currentMode !== 'groups') return;
         const group = e.target.closest('.group');
@@ -190,11 +266,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Загрузка чата
     function loadChat(name, messagesStorage) {
         document.querySelector('.chat-header .name').textContent = name;
+        const contactElement = currentMode === 'contacts' ?
+            contactsList.querySelector(`.contact.active .status`) : null;
         document.querySelector('.chat-header .status').textContent =
-            currentMode === 'contacts' && contactsList.querySelector(`.contact.active .status.online`) ? 'онлайн' : '';
+            contactElement && contactElement.classList.contains('online') ? 'онлайн' : '';
 
         chatMessages.innerHTML = '';
         if (messagesStorage[name]) {
@@ -203,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 messageDiv.className = 'message sent';
                 messageDiv.innerHTML = `
                     <div class="message-content">
-                        <span class="message-text">${message.text}</span>
+                        <span class="message-text">${escapeHTML(message.text)}</span>
                         <span class="message-time">${message.time}</span>
                         <span class="message-status ${message.status}"><i class="fas fa-${message.status === 'read' ? 'check-double' : 'check'}"></i></span>
                         <span class="message-actions">
@@ -222,7 +299,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    // Отправка сообщения
     sendButton.addEventListener('click', sendMessage);
     messageInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendMessage();
@@ -240,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         messageDiv.className = 'message sent';
         messageDiv.innerHTML = `
             <div class="message-content">
-                <span class="message-text">${text}</span>
+                <span class="message-text">${escapeHTML(text)}</span>
                 <span class="message-time">${time}</span>
                 <span class="message-status unread"><i class="fas fa-check"></i></span>
                 <span class="message-actions">
@@ -276,13 +352,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2000);
     }
 
-    // Закрытие всех открытых меню
     function closeAllMenus() {
         const menus = document.querySelectorAll('.message-menu.active');
         menus.forEach(menu => menu.classList.remove('active'));
     }
 
-    // Открытие/закрытие меню при клике на иконку
     chatMessages.addEventListener('click', (e) => {
         const actionsIcon = e.target.closest('.message-actions i');
         if (actionsIcon) {
@@ -295,14 +369,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Закрытие меню при клике вне его
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.message-actions') && !e.target.closest('.message-menu')) {
             closeAllMenus();
         }
     });
 
-    // Обработка действий с сообщением
     chatMessages.addEventListener('click', (e) => {
         const menuItem = e.target.closest('.menu-item');
         if (!menuItem) return;
@@ -336,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newText = editInput.value.trim();
                 if (newText) {
                     messageContent.innerHTML = `
-                        <span class="message-text">${newText}</span>
+                        <span class="message-text">${escapeHTML(newText)}</span>
                         <span class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         <span class="message-status read"><i class="fas fa-check-double"></i></span>
                         <span class="message-actions">
@@ -361,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             messageContent.querySelector('.cancel-btn').addEventListener('click', () => {
                 messageContent.innerHTML = `
-                    <span class="message-text">${originalText}</span>
+                    <span class="message-text">${escapeHTML(originalText)}</span>
                     <span class="message-time">${messagesStorage[currentTarget][messageIndex].time}</span>
                     <span class="message-status ${messagesStorage[currentTarget][messageIndex].status}"><i class="fas fa-${messagesStorage[currentTarget][messageIndex].status === 'read' ? 'check-double' : 'check'}"></i></span>
                     <span class="message-actions">
@@ -370,7 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="menu-item">Редактировать</div>
                             <div class="menu-item">Удалить</div>
                             <div class="menu-item">Отменить отправку</div>
-                        </span>
+                        </div>
                     </span>
                 `;
             });
@@ -383,4 +455,24 @@ document.addEventListener('DOMContentLoaded', () => {
             messagesStorage[currentTarget].splice(messageIndex, 1);
         }
     });
+
+    function loadGroups() {
+        fetch('/api/groups')
+            .then(response => response.json())
+            .then(data => {
+                groupsList.innerHTML = '';
+                if (data.groups) {
+                    data.groups.forEach(group => {
+                        const groupDiv = document.createElement('div');
+                        groupDiv.className = 'group';
+                        groupDiv.innerHTML = `
+                            <div class="avatar"></div>
+                            <span class="name">${escapeHTML(group.name)}</span>
+                        `;
+                        groupsList.appendChild(groupDiv);
+                    });
+                }
+            })
+            .catch(error => console.error('Error loading groups:', error));
+    }
 });
