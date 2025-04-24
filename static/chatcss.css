@@ -6,7 +6,13 @@
 }
 
 body {
-    background-color: #f0f2f5;
+    background: url('/static/images/chat-background.jpg') no-repeat center center;
+    background-size: cover;
+    /* Общий задний фон как у чата */
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 .main-wrapper {
@@ -16,8 +22,9 @@ body {
 
 .sidebar-menu {
     width: 60px;
-    background-color: #fff;
-    border-right: 1px solid #ddd;
+    background: #249FF4;
+    /* Синий фон как у контактов */
+    border-right: 1px solid #249FF4;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -68,7 +75,12 @@ body {
 .container {
     flex: 1;
     display: flex;
-    position: relative;
+    justify-content: space-between;
+    padding: 20px;
+    gap: 20px;
+    background: url('/static/images/chat-background.jpg') no-repeat center center;
+    background-size: cover;
+    /* Общий задний фон */
 }
 
 .version {
@@ -81,11 +93,15 @@ body {
 }
 
 .sidebar {
+    order: 1;
     width: 300px;
-    background-color: #fff;
-    border-right: 1px solid #ddd;
+    background: #ffffff;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    /* Контакты перемещены налево */
 }
 
 .search-bar {
@@ -123,33 +139,54 @@ body {
 
 .contact,
 .group {
-    padding: 15px;
+    padding: 10px 15px;
     display: flex;
     align-items: center;
     cursor: pointer;
-    border-bottom: 1px solid #f0f2f5;
+    border-radius: 10px;
+    /* Закругленные края */
+    margin-bottom: 10px;
+    /* Отступ между элементами */
+    background-color: #ffffff;
+    /* Белый фон */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    /* Легкая тень */
+    transition: background-color 0.3s, transform 0.2s;
+    /* Анимация при наведении */
 }
 
 .contact:hover,
 .group:hover {
-    background-color: #f5f5f5;
+    background-color: #f0f8ff;
+    /* Светло-голубой фон при наведении */
+    transform: translateY(-2px);
+    /* Легкий подъем при наведении */
 }
 
 .contact.active,
 .group.active {
-    background-color: #e6f0fa;
+    background-color: #e6f7ff;
+    /* Более насыщенный голубой для активного элемента */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    /* Более заметная тень */
 }
 
 .avatar {
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    /* Увеличенный размер аватара */
+    height: 50px;
     border-radius: 50%;
     background-color: #ddd;
-    margin-right: 10px;
+    margin-right: 15px;
+    flex-shrink: 0;
 }
 
 .name {
-    flex: 1;
+    font-size: 16px;
+    /* Увеличенный размер текста */
+    font-weight: bold;
+    color: #333;
+    /* Темный текст */
 }
 
 .status {
@@ -164,17 +201,26 @@ body {
 }
 
 .chat-area {
+    order: 2;
     flex: 1;
+    background: #ffffff;
+    /* Белый фон для чата */
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    /* Чат перемещен направо */
 }
 
 .chat-header {
     padding: 15px;
-    background-color: #fff;
+    background-color: #f0f2f5;
     border-bottom: 1px solid #ddd;
     display: flex;
     align-items: center;
+    border-radius: 15px 15px 0 0;
+    /* Закругленные верхние края */
 }
 
 .user-info {
@@ -210,6 +256,8 @@ body {
     flex: 1;
     padding: 20px;
     overflow-y: auto;
+    background: #ffffff;
+    /* Белый фон для области сообщений */
 }
 
 .message {
@@ -607,4 +655,14 @@ body {
 .modal-footer button:last-child {
     background-color: #ddd;
     color: #333;
+}
+
+.contacts {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    background: #eeeff061;
+    /* Белый фон для контактов */
+    border-radius: 15px;
+    /* Задний фон для контактов */
 }

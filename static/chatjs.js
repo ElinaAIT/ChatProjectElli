@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsMenu = document.getElementById('settingsMenu');
     const settingsMain = settingsMenu.querySelector('.settings-main');
     const settingsProfile = settingsMenu.querySelector('.settings-profile');
-    const createGroupButton = document.getElementById('createGroupButton');
     const createGroupChatButton = document.getElementById('createGroupChatButton');
     const groupModal = document.getElementById('groupModal');
     const groupNameInput = document.getElementById('groupNameInput');
@@ -103,8 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    createGroupButton.addEventListener('click', openGroupModal);
-    createGroupChatButton.addEventListener('click', openGroupModal);
     createGroupFinal.addEventListener('click', createGroup);
     groupModal.addEventListener('click', (e) => {
         if (e.target.classList.contains('modal-close')) {
@@ -170,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMode = 'contacts';
         contactsList.classList.add('active');
         groupsList.classList.remove('active');
-        createGroupButton.style.display = 'none';
         contactsTab.classList.add('active');
         groupsTab.classList.remove('active');
         settingsMenu.classList.remove('active');
@@ -184,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMode = 'groups';
         groupsList.classList.add('active');
         contactsList.classList.remove('active');
-        createGroupButton.style.display = 'block';
         groupsTab.classList.add('active');
         contactsTab.classList.remove('active');
         settingsMenu.classList.remove('active');
@@ -409,7 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (newText) {
                     messageContent.innerHTML = `
                         <span class="message-text">${escapeHTML(newText)}</span>
-                        <span class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span class="message-time">${new Date().toLocaleTimeString([], { hour: '1-digit', minute: '1-digit' })}</span>
                         <span class="message-status read"><i class="fas fa-check-double"></i></span>
                         <span class="message-actions">
                             <i class="fas fa-ellipsis-v"></i>
@@ -421,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </span>
                     `;
                     messagesStorage[currentTarget][messageIndex].text = newText;
-                    messagesStorage[currentTarget][messageIndex].time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    messagesStorage[currentTarget][messageIndex].time = new Date().toLocaleTimeString([], { hour: '1-digit', minute: '1-digit' });
                     messagesStorage[currentTarget][messageIndex].status = 'read';
                 }
             });
@@ -475,4 +470,10 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => console.error('Error loading groups:', error));
     }
+
+    // Change the color of all icons torgb(255, 255, 255)
+    const icons = document.querySelectorAll('.menu-item i, .settings-tab i, .message-actions i, .message-status i');
+    icons.forEach(icon => {
+        icon.style.color = '#FFFFFF';
+    });
 });

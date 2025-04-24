@@ -43,9 +43,9 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS group_members (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         group_id INTEGER NOT NULL,
-        username TEXT NOT NULL,
+        user_id INTEGER NOT NULL,
         FOREIGN KEY (group_id) REFERENCES groups(id),
-        FOREIGN KEY (username) REFERENCES users(username)
+        FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
 
     conn.commit()
@@ -252,16 +252,15 @@ def create_group():
         # Проверка существования пользователей (игнорируем регистр)
         print(f"Проверка пользователей: {members}")
         placeholders = ','.join('?' * len(members))
-        query = f'SELECT username FROM users WHERE LOWER(username) IN ({placeholders})'
+        query = f'SELECT id, username FROM users WHERE LOWER(username) IN ({placeholders})'
         print(f"Выполняем SQL-запрос: {query} с параметрами {members}")
-        # Приводим имена в members к нижнему регистру для сравнения
         c.execute(query, [m.lower() for m in members])
-        valid_members = [row[0] for row in c.fetchall()]
+        valid_members = c.fetchall()
         print(f"Найденные пользователи: {valid_members}")
 
         # Проверяем, какие пользователи не найдены
-        members_lower = [m.lower() for m in members]
-        invalid_members = [m for m in members if m.lower() not in [vm.lower() for vm in valid_members]]
+        valid_usernames = [row[1] for row in valid_members]
+        invalid_members = [m for m in members if m.lower() not in [vm.lower() for vm in valid_usernames]]
         if invalid_members:
             print(f"Ошибка: Пользователи не найдены: {invalid_members}")
             conn.close()
@@ -275,8 +274,8 @@ def create_group():
 
         # Добавление участников
         print(f"Добавление участников: {valid_members}")
-        for member in valid_members:
-            c.execute('INSERT INTO group_members (group_id, username) VALUES (?, ?)', (group_id, member))
+        for user_id, username in valid_members:
+            c.execute('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)', (group_id, user_id))
 
         conn.commit()
         conn.close()
@@ -290,5 +289,6 @@ def create_group():
         conn.close()
         print(f"Ошибка при создании группы: {e}")
         return jsonify({'success': False, 'error': 'Ошибка сервера'}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
