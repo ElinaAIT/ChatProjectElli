@@ -21,11 +21,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const groupContactsList = document.getElementById('groupContactsList');
     const createGroupFinal = document.getElementById('createGroupFinal');
     const settingsOverlay = document.getElementById('settingsOverlay');
+    const searchResults = document.getElementById('searchResults'); // Контейнер для результатов поиска
     const messagesByContact = {};
     const messagesByGroup = {};
     let currentMode = 'contacts';
     let currentContact = 'Mom';
     let currentGroup = 'AIT-CS';
+
+    // Храним добавленные контакты
+    const addedContacts = []; // Массив для добавленных контактов
 
     function escapeHTML(str) {
         return str.replace(/[&<>"']/g, match => ({
@@ -36,6 +40,102 @@ document.addEventListener('DOMContentLoaded', () => {
             "'": '&#39;'
         }[match]));
     }
+
+    // Функция загрузки всех зарегистрированных пользователей (для проверки)
+    async function fetchRegisteredUsers() {
+        try {
+            const response = await fetch('/api/users');
+            const data = await response.json();
+            return data.users || [];
+        } catch (error) {
+            console.error('Ошибка загрузки пользователей:', error);
+            return [];
+        }
+    }
+
+    // Функция загрузки контактов (только добавленные)
+    function loadContacts() {
+        contactsList.innerHTML = '';
+        addedContacts.forEach(user => {
+            const contactDiv = document.createElement('div');
+            contactDiv.className = 'contact';
+            contactDiv.innerHTML = `
+                <div class="avatar"></div>
+                <span class="name">${escapeHTML(user)}</span>
+                <span class="status ${Math.random() > 0.5 ? 'online' : ''}"></span>
+            `;
+            contactsList.appendChild(contactDiv);
+        });
+    }
+
+    // Функция загрузки групп
+    function loadGroups() {
+        fetch('/api/groups')
+            .then(response => response.json())
+            .then(data => {
+                groupsList.innerHTML = '';
+                if (data.groups) {
+                    data.groups.forEach(group => {
+                        const groupDiv = document.createElement('div');
+                        groupDiv.className = 'group';
+                        groupDiv.innerHTML = `
+                            <div class="avatar"></div>
+                            <span class="name">${escapeHTML(group.name)}</span>
+                        `;
+                        groupsList.appendChild(groupDiv);
+                    });
+                }
+            })
+            .catch(error => console.error('Ошибка загрузки групп:', error));
+    }
+
+    // Функция поиска контактов
+    async function searchContact() {
+        const searchTerm = searchInput.value.trim().toLowerCase();
+        searchResults.innerHTML = '';
+
+        if (!searchTerm) return;
+
+        // Получаем список зарегистрированных пользователей
+        const registeredUsers = await fetchRegisteredUsers();
+
+        // Проверяем, есть ли пользователь в списке зарегистрированных
+        const foundUser = registeredUsers.find(user => user.toLowerCase() === searchTerm);
+
+        if (!foundUser) {
+            searchResults.innerHTML = '<p>Нет такого контакта.</p>';
+            return;
+        }
+
+        // Проверяем, не добавлен ли контакт уже
+        if (addedContacts.includes(foundUser)) {
+            searchResults.innerHTML = '<p>Контакт уже добавлен.</p>';
+            return;
+        }
+
+        // Отображаем результат поиска с переключателем
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'search-result';
+        resultDiv.innerHTML = `
+            <div class="avatar"></div>
+            <span class="name">${escapeHTML(foundUser)}</span>
+            <label class="switch">
+                <input type="checkbox" onchange="addContact('${foundUser}', this)">
+                <span class="slider"></span>
+            </label>
+        `;
+        searchResults.appendChild(resultDiv);
+    }
+
+    // Функция добавления контакта
+    window.addContact = function (username, checkbox) {
+        if (checkbox.checked) {
+            addedContacts.push(username);
+            loadContacts(); // Обновляем список контактов
+            searchResults.innerHTML = ''; // Очищаем результаты поиска
+            searchInput.value = ''; // Очищаем поле поиска
+        }
+    };
 
     function loadContactsForGroup() {
         fetch('/api/users')
@@ -150,7 +250,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 settingsTab.classList.remove('active');
             } else if (action === 'exit') {
                 console.log('Пользователь нажал на выход');
-                // Отправляем запрос на выход
                 fetch('/api/logout', {
                     method: 'POST',
                     headers: {
@@ -164,7 +263,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     .catch(error => {
                         console.error('Ошибка при выходе:', error);
                     });
-                // Немедленно перенаправляем на страницу авторизации
                 settingsMenu.classList.remove('active');
                 settingsOverlay.classList.remove('active');
                 settingsTab.classList.remove('active');
@@ -251,15 +349,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Обновляем логику поиска
     searchInput.addEventListener('input', () => {
-        const searchTerm = searchInput.value.toLowerCase();
         if (currentMode === 'contacts') {
-            const contacts = contactsList.getElementsByClassName('contact');
-            Array.from(contacts).forEach(contact => {
-                const name = contact.querySelector('.name').textContent.toLowerCase();
-                contact.style.display = name.includes(searchTerm) ? 'flex' : 'none';
-            });
+            searchContact(); // Поиск для добавления контактов
         } else {
+            const searchTerm = searchInput.value.toLowerCase();
             const groups = groupsList.getElementsByClassName('group');
             Array.from(groups).forEach(group => {
                 const name = group.querySelector('.name').textContent.toLowerCase();
@@ -490,26 +585,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function loadGroups() {
-        fetch('/api/groups')
-            .then(response => response.json())
-            .then(data => {
-                groupsList.innerHTML = '';
-                if (data.groups) {
-                    data.groups.forEach(group => {
-                        const groupDiv = document.createElement('div');
-                        groupDiv.className = 'group';
-                        groupDiv.innerHTML = `
-                            <div class="avatar"></div>
-                            <span class="name">${escapeHTML(group.name)}</span>
-                        `;
-                        groupsList.appendChild(groupDiv);
-                    });
-                }
-            })
-            .catch(error => console.error('Ошибка загрузки групп:', error));
-    }
-
     function loadUserProfile() {
         fetch('/api/user/profile', {
             method: 'GET',
@@ -549,5 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
         icon.style.color = '#FFFFFF';
     });
 
+    // Инициализация
     loadGroups();
+    loadContacts(); // Изначально загружаем пустой список контактов
 });

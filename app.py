@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -7,12 +7,16 @@ from email.mime.text import MIMEText
 import random
 import string
 from datetime import datetime, timedelta
+import logging
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'  # Установите секретный ключ для сессий
 CORS(app)
+app.secret_key = 'your_secret_key'
 
 DB_PATH = 'users.db'
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -80,17 +84,10 @@ def send_email(to_email, code):
 
 @app.route('/')
 def index():
-    if 'username' in session:
-        print(f"Пользователь {session['username']} уже авторизован, перенаправление на /chat")
-        return redirect(url_for('chat'))
     return render_template('index.html')
 
 @app.route('/chat')
 def chat():
-    if 'username' not in session:
-        print("Неавторизованный доступ к /chat, перенаправление на /")
-        return redirect(url_for('index'))
-    print(f"Пользователь {session['username']} открыл /chat")
     return render_template('chat.html')
 
 @app.route('/api/register', methods=['POST'])
@@ -137,23 +134,11 @@ def login():
         conn.close()
         if user and check_password_hash(user[0], password):
             session['username'] = username
-            session.modified = True
-            print(f"Пользователь {username} авторизован")
             return jsonify({'message': 'Авторизация успешна'}), 200
         return jsonify({'error': 'Неверное имя пользователя или пароль'}), 401
     except Exception as e:
         print(f"Ошибка при авторизации: {e}")
         return jsonify({'error': 'Ошибка сервера'}), 500
-
-@app.route('/api/logout', methods=['POST'])
-def logout():
-    username = session.get('username')
-    print(f"Сессия до выхода: {username}")
-    session.pop('username', None)
-    session.modified = True
-    print(f"Сессия после выхода: {session.get('username')}")
-    # Возвращаем редирект на страницу авторизации
-    return redirect(url_for('index'), code=302)
 
 @app.route('/api/request-reset', methods=['POST'])
 def request_reset():
@@ -315,6 +300,7 @@ def create_group():
 def get_user_profile():
     try:
         if 'username' not in session:
+            logger.warning("Неавторизованный доступ к /api/user/profile")
             return jsonify({'success': False, 'error': 'Пользователь не авторизован'}), 401
 
         conn = sqlite3.connect(DB_PATH)
@@ -326,12 +312,13 @@ def get_user_profile():
         if user:
             return jsonify({
                 'success': True,
-                'name': user[0],  # username используется как имя
+                'name': user[0],
                 'email': user[1]
             }), 200
+        logger.warning(f"Пользователь {session['username']} не найден при получении профиля")
         return jsonify({'success': False, 'error': 'Пользователь не найден'}), 404
     except Exception as e:
-        print(f"Ошибка при получении профиля пользователя: {e}")
+        logger.error(f"Ошибка при получении профиля пользователя: {e}")
         return jsonify({'success': False, 'error': 'Ошибка сервера'}), 500
 
 if __name__ == '__main__':

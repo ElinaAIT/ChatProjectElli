@@ -7,7 +7,6 @@
     <title>CHATTTT</title>
     <link rel="stylesheet" href="/static/chatcss.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
 </head>
 
 <body>
@@ -35,6 +34,7 @@
                     <input type="text" placeholder="Поиск..." id="searchInput">
                     <i class="fas fa-search"></i>
                 </div>
+                <div id="searchResults"></div> <!-- Добавляем контейнер для результатов поиска -->
                 <div class="contacts active" id="contactsList"></div>
                 <div class="groups" id="groupsList"></div>
             </div>
@@ -115,9 +115,6 @@
                     <div class="settings-item" data-action="create-group">
                         <i class="fas fa-users settings-icon"></i> Create Group
                     </div>
-                    <div class="settings-item" data-action="add-contact">
-                        <i class="fas fa-user-plus settings-icon"></i> Add Contact
-                    </div>
                     <div class="settings-item" data-action="exit">
                         <i class="fas fa-sign-out-alt settings-icon"></i> Exit
                     </div>
@@ -161,74 +158,9 @@
                     </div>
                 </div>
             </div>
-            <div class="modal" id="addContactModal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <span>Добавить контакт</span>
-                        <i class="fas fa-times modal-close"></i>
-                    </div>
-                    <div class="modal-body">
-                        <label>Зарегистрированные пользователи:</label>
-                        <div class="contacts-list" id="addContactList"></div>
-                    </div>
-                    <div class="modal-footer">
-                        <button id="addContactFinal">Добавить</button>
-                        <button class="modal-close">Отмена</button>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
     <script src="/static/chatjs.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            function loadGroups() {
-                fetch('/api/groups')
-                    .then(response => response.json())
-                    .then(data => {
-                        const groupsList = document.getElementById('groupsList');
-                        groupsList.innerHTML = '';
-                        if (data.groups) {
-                            data.groups.forEach(group => {
-                                const groupDiv = document.createElement('div');
-                                groupDiv.className = 'group';
-                                groupDiv.innerHTML = `
-                                    <div class="avatar"></div>
-                                    <span class="name">${group.name}</span>
-                                `;
-                                groupsList.appendChild(groupDiv);
-                            });
-                        }
-                    })
-                    .catch(error => console.error('Error loading groups:', error));
-            }
-
-            function loadUsers() {
-                fetch('/api/users')
-                    .then(response => response.json())
-                    .then(data => {
-                        const contactsList = document.getElementById('contactsList');
-                        contactsList.innerHTML = '';
-                        if (data.users) {
-                            data.users.forEach(user => {
-                                const contactDiv = document.createElement('div');
-                                contactDiv.className = 'contact';
-                                contactDiv.innerHTML = `
-                                    <input type="checkbox" class="contact-checkbox" style="display: none;" data-username="${user}">
-                                    <div class="avatar"></div>
-                                    <span class="name">${user}</span>
-                                `;
-                                contactsList.appendChild(contactDiv);
-                            });
-                        }
-                    })
-                    .catch(error => console.error('Error loading users:', error));
-            }
-
-            loadGroups();
-            loadUsers();
-        });
-    </script>
 </body>
 
 </html>
