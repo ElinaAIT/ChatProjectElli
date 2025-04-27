@@ -8,7 +8,6 @@
 body {
     background: url('/static/images/chat-background.jpg') no-repeat center center;
     background-size: cover;
-    /* Общий задний фон как у чата */
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
@@ -23,7 +22,6 @@ body {
 .sidebar-menu {
     width: 60px;
     background: #249FF4;
-    /* Синий фон как у контактов */
     border-right: 1px solid #249FF4;
     display: flex;
     flex-direction: column;
@@ -80,7 +78,6 @@ body {
     gap: 20px;
     background: url('/static/images/chat-background.jpg') no-repeat center center;
     background-size: cover;
-    /* Общий задний фон */
 }
 
 .version {
@@ -101,7 +98,6 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* Контакты перемещены налево */
 }
 
 .search-bar {
@@ -144,36 +140,26 @@ body {
     align-items: center;
     cursor: pointer;
     border-radius: 10px;
-    /* Закругленные края */
     margin-bottom: 10px;
-    /* Отступ между элементами */
     background-color: #ffffff;
-    /* Белый фон */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    /* Легкая тень */
     transition: background-color 0.3s, transform 0.2s;
-    /* Анимация при наведении */
 }
 
 .contact:hover,
 .group:hover {
     background-color: #f0f8ff;
-    /* Светло-голубой фон при наведении */
     transform: translateY(-2px);
-    /* Легкий подъем при наведении */
 }
 
 .contact.active,
 .group.active {
     background-color: #e6f7ff;
-    /* Более насыщенный голубой для активного элемента */
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    /* Более заметная тень */
 }
 
 .avatar {
     width: 50px;
-    /* Увеличенный размер аватара */
     height: 50px;
     border-radius: 50%;
     background-color: #ddd;
@@ -183,10 +169,8 @@ body {
 
 .name {
     font-size: 16px;
-    /* Увеличенный размер текста */
     font-weight: bold;
     color: #333;
-    /* Темный текст */
 }
 
 .status {
@@ -203,24 +187,23 @@ body {
 .chat-area {
     order: 2;
     flex: 1;
-    background: #ffffff;
-    /* Белый фон для чата */
+    background: linear-gradient(135deg, #f0f8ff, #e6f7ff);
     border-radius: 15px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* Чат перемещен направо */
+    animation: slideIn 0.3s ease-in-out;
+    color: #333;
 }
 
 .chat-header {
     padding: 15px;
-    background-color: #f0f2f5;
-    border-bottom: 1px solid #ddd;
+    background: transparent;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     border-radius: 15px 15px 0 0;
-    /* Закругленные верхние края */
 }
 
 .user-info {
@@ -228,6 +211,12 @@ body {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+}
+
+.user-info .name {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
 }
 
 .user-info .status {
@@ -256,8 +245,7 @@ body {
     flex: 1;
     padding: 20px;
     overflow-y: auto;
-    background: #ffffff;
-    /* Белый фон для области сообщений */
+    background: transparent;
 }
 
 .message {
@@ -277,9 +265,10 @@ body {
 .message-text {
     display: inline-block;
     padding: 10px 15px;
-    background-color: #0084ff;
+    background: linear-gradient(90deg, #249FF4, #0084ff);
     color: #fff;
     border-radius: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .message-time {
@@ -356,8 +345,8 @@ body {
 
 .chat-input {
     padding: 15px;
-    background-color: #fff;
-    border-top: 1px solid #ddd;
+    background: transparent;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
 }
@@ -368,16 +357,32 @@ body {
     border: 1px solid #ddd;
     border-radius: 20px;
     outline: none;
+    background-color: #fff;
+    color: #333;
+    transition: border-color 0.3s ease;
+}
+
+.chat-input input:focus {
+    border-color: #249FF4;
+    box-shadow: 0 0 5px rgba(36, 159, 244, 0.3);
 }
 
 .chat-input button {
     margin-left: 10px;
     padding: 10px;
-    background-color: #0084ff;
+    background: linear-gradient(90deg, #249FF4, #0084ff);
     color: #fff;
     border: none;
     border-radius: 50%;
     cursor: pointer;
+    box-shadow: 0 4px 15px rgba(36, 159, 244, 0.3);
+    transition: all 0.3s ease;
+}
+
+.chat-input button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(36, 159, 244, 0.5);
+    background: linear-gradient(90deg, #0084ff, #249FF4);
 }
 
 .edit-container {
@@ -392,6 +397,14 @@ body {
     border-radius: 15px;
     outline: none;
     width: 100%;
+    background-color: #fff;
+    color: #333;
+    transition: border-color 0.3s ease;
+}
+
+.edit-input:focus {
+    border-color: #249FF4;
+    box-shadow: 0 0 5px rgba(36, 159, 244, 0.3);
 }
 
 .edit-actions {
@@ -411,13 +424,29 @@ body {
 }
 
 .save-btn {
-    background-color: #0084ff;
+    background: linear-gradient(90deg, #249FF4, #0084ff);
     color: #fff;
+    box-shadow: 0 4px 15px rgba(36, 159, 244, 0.3);
+    transition: all 0.3s ease;
+}
+
+.save-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(36, 159, 244, 0.5);
+    background: linear-gradient(90deg, #0084ff, #249FF4);
 }
 
 .delete-btn {
-    background-color: #ff4444;
+    background: linear-gradient(90deg, #ff6666, #ff3333);
     color: #fff;
+    box-shadow: 0 4px 15px rgba(255, 51, 51, 0.3);
+    transition: all 0.3s ease;
+}
+
+.delete-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 51, 51, 0.5);
+    background: linear-gradient(90deg, #ff3333, #ff6666);
 }
 
 .cancel-btn {
@@ -428,7 +457,7 @@ body {
 .emoji-button {
     margin-right: 10px;
     padding: 10px;
-    background-color: transparent;
+    background: transparent;
     color: #666;
     border: none;
     border-radius: 50%;
@@ -437,7 +466,7 @@ body {
 }
 
 .emoji-button:hover {
-    background-color: #f5f5f5;
+    background: #f5f5f5;
 }
 
 .emoji-panel {
@@ -493,14 +522,12 @@ body {
     display: none;
     position: absolute;
     top: 0;
-    right: 0;
-    width: 200px;
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-    z-index: 200;
-    padding: 10px;
+    left: 0;
+    width: 300px;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    z-index: 1000;
 }
 
 .settings-menu.active {
@@ -517,62 +544,34 @@ body {
     display: block;
 }
 
-.settings-header {
-    padding: 10px;
-    font-size: 16px;
-    font-weight: bold;
-    color: #333;
-    border-bottom: 1px solid #ddd;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.settings-header i {
-    cursor: pointer;
-    color: #666;
-}
-
-.settings-header i:hover {
-    color: #0084ff;
-}
-
-.settings-item {
-    padding: 10px 15px;
-    background-color: #0084ff;
-    color: #fff;
-    border-radius: 20px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    text-align: center;
-    font-size: 14px;
-}
-
-.settings-item:hover {
-    background-color: #0073e6;
-}
-
-.profile-info {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.profile-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background-color: #ddd;
-    margin-bottom: 10px;
-}
-
-.profile-name {
-    font-size: 16px;
+/* Стили для окна Settings */
+.settings-main {
+    background: linear-gradient(135deg, #f0f8ff, #e6f7ff);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    padding: 20px;
+    width: 300px;
+    animation: slideIn 0.3s ease-in-out;
     color: #333;
 }
 
+/* Стили для окна профиля */
+.settings-profile {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: linear-gradient(135deg, #f0f8ff, #e6f7ff);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    padding: 20px;
+    width: 300px;
+    height: 70vh;
+    animation: slideIn 0.3s ease-in-out;
+    color: #333;
+    z-index: 1001;
+}
+
+/* Стили для модального окна Create Group */
 .modal {
     display: none;
     position: fixed;
@@ -587,57 +586,212 @@ body {
 }
 
 .modal-content {
-    background-color: #fff;
-    border-radius: 10px;
+    background: linear-gradient(135deg, #f0f8ff, #e6f7ff);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
     padding: 20px;
     width: 400px;
     max-width: 90%;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    animation: slideIn 0.3s ease-in-out;
+    color: #333;
 }
 
+/* Стили для заголовка (общие для .settings-main, .settings-profile и .modal-content) */
+.settings-header,
 .modal-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.settings-header i,
+.modal-header i {
+    cursor: pointer;
+    margin-right: 10px;
+    font-size: 18px;
+    color: #249FF4;
+}
+
+.settings-header span,
+.modal-header span {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
 }
 
 .modal-header i {
-    cursor: pointer;
-    color: #666;
+    margin-left: auto;
+    margin-right: 0;
 }
 
-.modal-header i:hover {
-    color: #0084ff;
-}
-
-.modal-body {
+/* Стили для кнопок в .settings-main */
+.settings-main .settings-item {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 10px;
-}
-
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-.modal-footer button {
-    padding: 10px 20px;
+    background: linear-gradient(90deg, #249FF4, #0084ff);
+    color: #fff;
     border: none;
-    border-radius: 5px;
+    border-radius: 25px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
     cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 15px rgba(36, 159, 244, 0.3);
 }
 
-.modal-footer button:first-child {
-    background-color: #0084ff;
+.settings-main .settings-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(36, 159, 244, 0.5);
+    background: linear-gradient(90deg, #0084ff, #249FF4);
+}
+
+.settings-main .settings-icon {
+    font-size: 18px;
     color: #fff;
 }
 
-.modal-footer button:last-child {
-    background-color: #ddd;
+/* Анимация появления (общая для .settings-main, .settings-profile, .modal-content и .chat-area) */
+@keyframes slideIn {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Контейнер информации профиля */
+.settings-profile .profile-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* Стили для аватара */
+.settings-profile .profile-avatar {
+    width: 100px;
+    height: 100px;
+    background: #ddd;
+    border-radius: 50%;
+    margin-bottom: 15px;
+    position: relative;
+    overflow: hidden;
+    border: 4px solid transparent;
+    background-clip: padding-box;
+    box-shadow: 0 0 20px rgba(36, 159, 244, 0.5);
+    transition: transform 0.3s ease;
+}
+
+/* Градиентная обводка для аватара */
+.settings-profile .profile-avatar::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, #249FF4, #0084ff);
+    z-index: -1;
+}
+
+.settings-profile .profile-avatar:hover {
+    transform: scale(1.05);
+}
+
+/* Контейнер для имени и email */
+.settings-profile .profile-details {
+    text-align: center;
+    width: 100%;
+}
+
+/* Контейнеры для имени и email с иконками */
+.profile-name-container,
+.profile-email-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 0;
+}
+
+.profile-icon {
+    margin-right: 10px;
+    font-size: 18px;
+    color: #249FF4;
+}
+
+/* Стили для имени */
+.settings-profile .profile-name {
+    font-size: 24px;
+    font-weight: bold;
     color: #333;
+}
+
+/* Стили для email */
+.settings-profile .profile-email {
+    font-size: 16px;
+    font-weight: normal;
+    color: #666;
+    word-break: break-all;
+}
+
+/* Стили для кнопки "information" */
+.settings-profile .info-button {
+    background: linear-gradient(90deg, #249FF4, #0084ff);
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(36, 159, 244, 0.3);
+}
+
+.settings-profile .info-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(36, 159, 244, 0.5);
+    background: linear-gradient(90deg, #0084ff, #249FF4);
+}
+
+/* Стили для содержимого модального окна Create Group */
+.modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.modal-body label {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+}
+
+.modal-body input {
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    outline: none;
+    font-size: 14px;
+    color: #333;
+    background-color: #fff;
+    transition: border-color 0.3s ease;
+}
+
+.modal-body input:focus {
+    border-color: #249FF4;
+    box-shadow: 0 0 5px rgba(36, 159, 244, 0.3);
 }
 
 .contacts-list .contact {
@@ -645,15 +799,24 @@ body {
     align-items: center;
     padding: 10px;
     border-bottom: 1px solid #f0f2f5;
+    background: #ffffff;
+    border-radius: 10px;
+    margin-bottom: 5px;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.contacts-list .contact:hover {
+    background-color: #f0f8ff;
+    transform: translateY(-2px);
 }
 
 .contacts-list .contact input[type="checkbox"] {
     margin-right: 10px;
 }
 
+/* Стили для футера модального окна */
 .modal-footer {
-    padding: 15px;
-    border-top: 1px solid #ddd;
+    padding: 15px 0;
     display: flex;
     justify-content: flex-end;
     gap: 10px;
@@ -662,18 +825,34 @@ body {
 .modal-footer button {
     padding: 10px 20px;
     border: none;
-    border-radius: 20px;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
     cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(36, 159, 244, 0.3);
 }
 
 .modal-footer button:first-child {
-    background-color: #0084ff;
+    background: linear-gradient(90deg, #249FF4, #0084ff);
     color: #fff;
 }
 
+.modal-footer button:first-child:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(36, 159, 244, 0.5);
+    background: linear-gradient(90deg, #0084ff, #249FF4);
+}
+
 .modal-footer button:last-child {
-    background-color: #ddd;
-    color: #333;
+    background: linear-gradient(90deg, #ff6666, #ff3333);
+    color: #fff;
+}
+
+.modal-footer button:last-child:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 51, 51, 0.5);
+    background: linear-gradient(90deg, #ff3333, #ff6666);
 }
 
 .contacts {
@@ -681,7 +860,5 @@ body {
     overflow-y: auto;
     padding: 15px;
     background: #eeeff061;
-    /* Белый фон для контактов */
     border-radius: 15px;
-    /* Задний фон для контактов */
 }

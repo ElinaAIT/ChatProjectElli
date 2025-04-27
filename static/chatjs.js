@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const groupNameInput = document.getElementById('groupNameInput');
     const groupContactsList = document.getElementById('groupContactsList');
     const createGroupFinal = document.getElementById('createGroupFinal');
-
+    const settingsOverlay = document.getElementById('settingsOverlay');
     const messagesByContact = {};
     const messagesByGroup = {};
     let currentMode = 'contacts';
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '<': '<',
             '>': '>',
             '"': '"',
-            "'": '\''
+            "'": '&#39;'
         }[match]));
     }
 
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             })
-            .catch(error => console.error('Error loading users for group:', error));
+            .catch(error => console.error('Ошибка загрузки пользователей для группы:', error));
     }
 
     function openGroupModal() {
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             })
             .catch(error => {
-                console.error('Error creating group:', error);
+                console.error('Ошибка создания группы:', error);
                 alert('Ошибка при создании группы');
             });
     }
@@ -118,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         if (settingsMenu.classList.contains('active')) {
             settingsMenu.classList.remove('active');
+            settingsOverlay.classList.remove('active');
             settingsTab.classList.remove('active');
             settingsMain.classList.add('active');
             settingsProfile.classList.remove('active');
@@ -126,22 +127,49 @@ document.addEventListener('DOMContentLoaded', () => {
             settingsMenu.style.top = `${rect.bottom + window.scrollY + 5}px`;
             settingsMenu.style.left = `${rect.left + window.scrollX}px`;
             settingsMenu.classList.add('active');
+            settingsOverlay.classList.add('active');
             settingsTab.classList.add('active');
             closeAllMenus();
         }
     });
 
     settingsMain.addEventListener('click', (e) => {
+        console.log('Клик по settingsMain', e.target);
         const settingsItem = e.target.closest('.settings-item');
         if (settingsItem) {
             const action = settingsItem.getAttribute('data-action');
+            console.log('Действие:', action);
             if (action === 'my-profile') {
                 settingsMain.classList.remove('active');
                 settingsProfile.classList.add('active');
+                loadUserProfile();
             } else if (action === 'create-group') {
                 openGroupModal();
                 settingsMenu.classList.remove('active');
+                settingsOverlay.classList.remove('active');
                 settingsTab.classList.remove('active');
+            } else if (action === 'exit') {
+                console.log('Пользователь нажал на выход');
+                // Отправляем запрос на выход
+                fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                })
+                    .then(response => {
+                        console.log('Ответ от /api/logout:', response.status);
+                    })
+                    .catch(error => {
+                        console.error('Ошибка при выходе:', error);
+                    });
+                // Немедленно перенаправляем на страницу авторизации
+                settingsMenu.classList.remove('active');
+                settingsOverlay.classList.remove('active');
+                settingsTab.classList.remove('active');
+                console.log('Перенаправление на /');
+                window.location.replace('/');
             }
         }
     });
@@ -157,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.settings-tab') && !e.target.closest('.settings-menu')) {
             settingsMenu.classList.remove('active');
+            settingsOverlay.classList.remove('active');
             settingsTab.classList.remove('active');
             settingsMain.classList.add('active');
             settingsProfile.classList.remove('active');
@@ -170,6 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         contactsTab.classList.add('active');
         groupsTab.classList.remove('active');
         settingsMenu.classList.remove('active');
+        settingsOverlay.classList.remove('active');
         settingsTab.classList.remove('active');
         settingsMain.classList.add('active');
         settingsProfile.classList.remove('active');
@@ -183,6 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         groupsTab.classList.add('active');
         contactsTab.classList.remove('active');
         settingsMenu.classList.remove('active');
+        settingsOverlay.classList.remove('active');
         settingsTab.classList.remove('active');
         settingsMain.classList.add('active');
         settingsProfile.classList.remove('active');
@@ -360,7 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
         menus.forEach(menu => menu.classList.remove('active'));
     }
 
-    // Обработчик для открытия меню действий сообщения
     chatMessages.addEventListener('click', (e) => {
         const actionsIcon = e.target.closest('.message-actions i');
         if (actionsIcon) {
@@ -373,14 +403,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Закрытие меню при клике вне
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.message-actions') && !e.target.closest('.message-menu')) {
             closeAllMenus();
         }
     });
 
-    // Обработчик для выбора действий из меню (Редактировать, Удалить, Отменить отправку)
     chatMessages.addEventListener('click', (e) => {
         const menuItem = e.target.closest('.menu-item');
         if (!menuItem) return;
@@ -392,11 +420,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentTarget = currentMode === 'contacts' ? currentContact : currentGroup;
 
         const messageIndex = Array.from(chatMessages.children).indexOf(message);
-        if (messageIndex === -1) {
-            console.error('Message not found in chatMessages.children');
-            return;
-        }
-
         closeAllMenus();
 
         if (menuItem.textContent.includes('Редактировать')) {
@@ -414,123 +437,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const editInput = messageContent.querySelector('.edit-input');
             editInput.focus();
+
+            messageContent.querySelector('.save-btn').addEventListener('click', () => {
+                const newText = editInput.value.trim();
+                if (newText) {
+                    messageContent.innerHTML = `
+                        <span class="message-text">${escapeHTML(newText)}</span>
+                        <span class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span class="message-status read"><i class="fas fa-check-double"></i></span>
+                        <span class="message-actions">
+                            <i class="fas fa-ellipsis-v"></i>
+                            <div class="message-menu">
+                                <div class="menu-item">Редактировать</div>
+                                <div class="menu-item">Удалить</div>
+                                <div class="menu-item">Отменить отправку</div>
+                            </div>
+                        </span>
+                    `;
+                    messagesStorage[currentTarget][messageIndex].text = newText;
+                    messagesStorage[currentTarget][messageIndex].time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    messagesStorage[currentTarget][messageIndex].status = 'read';
+                }
+            });
+
+            messageContent.querySelector('.delete-btn').addEventListener('click', () => {
+                message.remove();
+                messagesStorage[currentTarget].splice(messageIndex, 1);
+            });
+
+            messageContent.querySelector('.cancel-btn').addEventListener('click', () => {
+                messageContent.innerHTML = `
+                    <span class="message-text">${escapeHTML(originalText)}</span>
+                    <span class="message-time">${messagesStorage[currentTarget][messageIndex].time}</span>
+                    <span class="message-status ${messagesStorage[currentTarget][messageIndex].status}"><i class="fas fa-${messagesStorage[currentTarget][messageIndex].status === 'read' ? 'check-double' : 'check'}"></i></span>
+                    <span class="message-actions">
+                        <i class="fas fa-ellipsis-v"></i>
+                        <div class="message-menu">
+                            <div class="menu-item">Редактировать</div>
+                            <div class="menu-item">Удалить</div>
+                            <div class="menu-item">Отменить отправку</div>
+                        </div>
+                    </span>
+                `;
+            });
+
         } else if (menuItem.textContent.includes('Удалить')) {
             message.remove();
             messagesStorage[currentTarget].splice(messageIndex, 1);
         } else if (menuItem.textContent.includes('Отменить отправку')) {
             message.remove();
             messagesStorage[currentTarget].splice(messageIndex, 1);
-        }
-    });
-
-    // Отдельный обработчик для кнопок редактирования (Сохранить, Удалить, Отменить)
-    chatMessages.addEventListener('click', (e) => {
-        // Обработчик для кнопки "Сохранить"
-        const saveButton = e.target.closest('.save-btn');
-        if (saveButton) {
-            console.log('Save button clicked!');
-            const message = saveButton.closest('.message');
-            const messageContent = message.querySelector('.message-content');
-            const editInput = messageContent.querySelector('.edit-input');
-            const messagesStorage = currentMode === 'contacts' ? messagesByContact : messagesByGroup;
-            const currentTarget = currentMode === 'contacts' ? currentContact : currentGroup;
-            const messageIndex = Array.from(chatMessages.children).indexOf(message);
-
-            if (messageIndex === -1) {
-                console.error('Message not found in chatMessages.children during save');
-                return;
-            }
-
-            const newText = editInput.value.trim();
-            console.log('New text:', newText);
-            if (newText) {
-                if (!messagesStorage || !messagesStorage[currentTarget]) {
-                    console.error('messagesStorage or currentTarget is undefined:', { messagesStorage, currentTarget });
-                    return;
-                }
-                messageContent.innerHTML = `
-                    <span class="message-text">${escapeHTML(newText)}</span>
-                    <span class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    <span class="message-status read"><i class="fas fa-check-double"></i></span>
-                    <span class="message-actions">
-                        <i class="fas fa-ellipsis-v"></i>
-                        <div class="message-menu">
-                            <div class="menu-item">
-                                <i class="fas fa-edit"></i> Редактировать
-                            </div>
-                            <div class="menu-item">
-                                <i class="fas fa-trash"></i> Удалить
-                            </div>
-                            <div class="menu-item">
-                                <i class="fas fa-undo"></i> Отменить отправку
-                            </div>
-                        </div>
-                    </span>
-                `;
-                messagesStorage[currentTarget][messageIndex].text = newText;
-                messagesStorage[currentTarget][messageIndex].time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                messagesStorage[currentTarget][messageIndex].status = 'read';
-            } else {
-                console.log('Text is empty, save aborted.');
-                alert('Пожалуйста, введите текст сообщения.');
-            }
-            return;
-        }
-
-        // Обработчик для кнопки "Удалить" в режиме редактирования
-        const deleteButton = e.target.closest('.delete-btn');
-        if (deleteButton) {
-            console.log('Delete button clicked!');
-            const message = deleteButton.closest('.message');
-            const messagesStorage = currentMode === 'contacts' ? messagesByContact : messagesByGroup;
-            const currentTarget = currentMode === 'contacts' ? currentContact : currentGroup;
-            const messageIndex = Array.from(chatMessages.children).indexOf(message);
-
-            if (messageIndex === -1) {
-                console.error('Message not found in chatMessages.children during delete');
-                return;
-            }
-
-            message.remove();
-            messagesStorage[currentTarget].splice(messageIndex, 1);
-            return;
-        }
-
-        // Обработчик для кнопки "Отменить"
-        const cancelButton = e.target.closest('.cancel-btn');
-        if (cancelButton) {
-            console.log('Cancel button clicked!');
-            const message = cancelButton.closest('.message');
-            const messageContent = message.querySelector('.message-content');
-            const messagesStorage = currentMode === 'contacts' ? messagesByContact : messagesByGroup;
-            const currentTarget = currentMode === 'contacts' ? currentContact : currentGroup;
-            const messageIndex = Array.from(chatMessages.children).indexOf(message);
-
-            if (messageIndex === -1) {
-                console.error('Message not found in chatMessages.children during cancel');
-                return;
-            }
-
-            messageContent.innerHTML = `
-                <span class="message-text">${escapeHTML(messagesStorage[currentTarget][messageIndex].text)}</span>
-                <span class="message-time">${messagesStorage[currentTarget][messageIndex].time}</span>
-                <span class="message-status ${messagesStorage[currentTarget][messageIndex].status}"><i class="fas fa-${messagesStorage[currentTarget][messageIndex].status === 'read' ? 'check-double' : 'check'}"></i></span>
-                <span class="message-actions">
-                    <i class="fas fa-ellipsis-v"></i>
-                    <div class="message-menu">
-                        <div class="menu-item">
-                            <i class="fas fa-edit"></i> Редактировать
-                        </div>
-                        <div class="menu-item">
-                            <i class="fas fa-trash"></i> Удалить
-                        </div>
-                        <div class="menu-item">
-                            <i class="fas fa-undo"></i> Отменить отправку
-                        </div>
-                    </div>
-                </span>
-            `;
-            return;
         }
     });
 
@@ -551,12 +507,47 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             })
-            .catch(error => console.error('Error loading groups:', error));
+            .catch(error => console.error('Ошибка загрузки групп:', error));
     }
 
-    // Change the color of all icons to rgb(255, 255, 255)
+    function loadUserProfile() {
+        fetch('/api/user/profile', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Ошибка сети: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const profileName = settingsProfile.querySelector('.profile-name');
+                const profileEmail = settingsProfile.querySelector('.profile-email');
+
+                if (data.success && profileName && profileEmail) {
+                    profileName.textContent = data.name || 'Имя не указано';
+                    profileEmail.textContent = data.email || 'Email не указан';
+                } else {
+                    console.error('Не удалось загрузить профиль:', data.error || 'Ответ не успешен');
+                    if (profileName) profileName.textContent = 'Ошибка загрузки';
+                    if (profileEmail) profileEmail.textContent = 'Ошибка загрузки';
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка загрузки профиля:', error);
+                const profileName = settingsProfile.querySelector('.profile-name');
+                const profileEmail = settingsProfile.querySelector('.profile-email');
+                if (profileName) profileName.textContent = 'Ошибка загрузки';
+                if (profileEmail) profileEmail.textContent = 'Ошибка загрузки';
+            });
+    }
+
     const icons = document.querySelectorAll('.menu-item i, .settings-tab i, .message-actions i, .message-status i');
     icons.forEach(icon => {
         icon.style.color = '#FFFFFF';
     });
+
+    loadGroups();
 });

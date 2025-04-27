@@ -7,6 +7,7 @@
     <title>CHATTTT</title>
     <link rel="stylesheet" href="/static/chatcss.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
 </head>
 
 <body>
@@ -102,14 +103,24 @@
                     <button id="sendButton"><i class="fas fa-paper-plane"></i></button>
                 </div>
             </div>
+            <div class="overlay" id="settingsOverlay"></div>
             <div class="settings-menu" id="settingsMenu">
                 <div class="settings-main active">
                     <div class="settings-header">
                         <span>Settings</span>
                     </div>
-                    <div class="settings-item" data-action="my-profile">My profile</div>
-                    <div class="settings-item" data-action="create-group">Create Group</div>
-                    <div class="settings-item" data-action="exit">Exit</div>
+                    <div class="settings-item" data-action="my-profile">
+                        <i class="fas fa-user settings-icon"></i> My profile
+                    </div>
+                    <div class="settings-item" data-action="create-group">
+                        <i class="fas fa-users settings-icon"></i> Create Group
+                    </div>
+                    <div class="settings-item" data-action="add-contact">
+                        <i class="fas fa-user-plus settings-icon"></i> Add Contact
+                    </div>
+                    <div class="settings-item" data-action="exit">
+                        <i class="fas fa-sign-out-alt settings-icon"></i> Exit
+                    </div>
                 </div>
                 <div class="settings-profile">
                     <div class="settings-header">
@@ -118,11 +129,18 @@
                     </div>
                     <div class="profile-info">
                         <div class="profile-avatar"></div>
-                        <span class="profile-name">User</span>
+                        <div class="profile-details">
+                            <div class="profile-name-container">
+                                <i class="fas fa-user profile-icon"></i>
+                                <span class="profile-name">User</span>
+                            </div>
+                            <div class="profile-email-container">
+                                <i class="fas fa-envelope profile-icon"></i>
+                                <span class="profile-email">Email не указан</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="settings-item">username</div>
-                    <div class="settings-item">@email</div>
-                    <div class="settings-item">information</div>
+                    <div class="settings-item info-button">information</div>
                 </div>
             </div>
             <div class="modal" id="groupModal">
@@ -139,6 +157,22 @@
                     </div>
                     <div class="modal-footer">
                         <button id="createGroupFinal">Создать</button>
+                        <button class="modal-close">Отмена</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal" id="addContactModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <span>Добавить контакт</span>
+                        <i class="fas fa-times modal-close"></i>
+                    </div>
+                    <div class="modal-body">
+                        <label>Зарегистрированные пользователи:</label>
+                        <div class="contacts-list" id="addContactList"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="addContactFinal">Добавить</button>
                         <button class="modal-close">Отмена</button>
                     </div>
                 </div>
