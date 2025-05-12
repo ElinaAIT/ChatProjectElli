@@ -25,13 +25,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const messagesByContact = {};
     const messagesByGroup = {};
     let currentMode = 'contacts';
-    let currentContact = null; // Начальное значение null
-    let currentGroup = null; // Начальное значение null
-    let lastMessageTime = null; // Для polling
+    let currentContact = null;
+    let currentGroup = null;
+    let lastMessageTime = null;
 
     // Храним добавленные контакты
     let addedContacts = [];
-    
+
     // Добавляем стили для переключателей
     const style = document.createElement('style');
     style.textContent = `
@@ -200,16 +200,56 @@ document.addEventListener('DOMContentLoaded', () => {
         .rename-btn:hover {
             background-color: #0b7dda;
         }
+        /* Стили для редактирования */
+        .edit-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        .edit-input {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            width: 100%;
+        }
+        .edit-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .save-btn, .cancel-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .save-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        .save-btn:hover {
+            background-color: #0b7dda;
+        }
+        .cancel-btn {
+            background-color: #ccc;
+            color: white;
+        }
+        .cancel-btn:hover {
+            background-color: #999;
+        }
     `;
     document.head.appendChild(style);
 
     function escapeHTML(str) {
         return str.replace(/[&<>"']/g, match => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;'
+            '&': '&',
+            '<': '<',
+            '>': '>',
+            '"': '"',
+            "'": '\''
         }[match]));
     }
 
@@ -231,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 addedContacts = data.contacts || [];
                 contactsList.innerHTML = '';
-                
+
                 addedContacts.forEach(user => {
                     const contactDiv = document.createElement('div');
                     contactDiv.className = 'contact';
@@ -258,14 +298,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm('Вы уверены, что хотите очистить список контактов?')) {
             return;
         }
-        
+
         try {
             const response = await fetch('/api/contacts/clear', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
             });
-            
+
             const data = await response.json();
             if (data.success) {
                 addedContacts = [];
@@ -286,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(response => response.json())
             .then(data => {
                 groupsList.innerHTML = '';
-                
+
                 if (data.groups) {
                     data.groups.forEach(group => {
                         const groupDiv = document.createElement('div');
@@ -308,14 +348,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm('Вы уверены, что хотите покинуть все группы?')) {
             return;
         }
-        
+
         try {
             const response = await fetch('/api/groups/clear', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
             });
-            
+
             const data = await response.json();
             if (data.success) {
                 groupsList.innerHTML = '';
@@ -422,7 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         addedContacts.splice(index, 1);
                     }
                     loadContacts();
-                    
+
                     // Если этот контакт был открыт в чате, закрываем его
                     if (currentContact === username) {
                         currentContact = null;
@@ -430,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.querySelector('.chat-header .name').textContent = '';
                         document.querySelector('.chat-header .status').textContent = '';
                     }
-                    
+
                     // Обновляем результаты поиска
                     searchResults.innerHTML = '';
                     const resultDiv = document.createElement('div');
@@ -523,19 +563,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 members: selectedUsers
             }),
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                loadGroups();
-                closeGroupModal();
-            } else {
-                alert('Ошибка при создании группы: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка:', error);
-            alert('Произошла ошибка при создании группы');
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadGroups();
+                    closeGroupModal();
+                } else {
+                    alert('Ошибка при создании группы: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при создании группы');
+            });
     }
 
     createGroupFinal.addEventListener('click', createGroup);
@@ -664,8 +704,20 @@ document.addEventListener('DOMContentLoaded', () => {
     emojiPanel.addEventListener('click', (e) => {
         const emoji = e.target.closest('.emoji');
         if (emoji) {
-            messageInput.value += emoji.dataset.emoji;
-            messageInput.focus();
+            // Check if there's an active edit input field (i.e., we're in edit mode)
+            const editInput = document.querySelector('.edit-input');
+            if (editInput) {
+                // If in edit mode, append the emoji to the edit input field
+                editInput.value += emoji.dataset.emoji;
+                editInput.focus();
+                // Move cursor to the end after appending emoji
+                const length = editInput.value.length;
+                editInput.setSelectionRange(length, length);
+            } else {
+                // Otherwise, append to the new message input field
+                messageInput.value += emoji.dataset.emoji;
+                messageInput.focus();
+            }
         }
     });
 
@@ -714,23 +766,23 @@ document.addEventListener('DOMContentLoaded', () => {
             group.classList.add('active');
             currentGroup = group.querySelector('.name').textContent;
             loadChat(currentGroup, messagesByGroup);
-            
+
             // Добавляем меню настроек группы
             const chatHeader = document.querySelector('.chat-header');
-            
+
             // Удаляем старое меню и иконки настроек, если они есть
             const oldMenus = document.querySelectorAll('.group-dropdown-menu');
             oldMenus.forEach(menu => menu.remove());
-            
+
             const oldIcons = document.querySelectorAll('.group-settings-icon');
             oldIcons.forEach(icon => icon.remove());
-            
+
             // Добавляем новую иконку настроек в виде троеточия
             const groupSettingsIcon = document.createElement('div');
             groupSettingsIcon.className = 'group-settings-icon';
             groupSettingsIcon.innerHTML = `<i class="fas fa-ellipsis-v"></i>`;
             chatHeader.appendChild(groupSettingsIcon);
-            
+
             // Создаем выпадающее меню (но пока не показываем)
             const groupMenu = document.createElement('div');
             groupMenu.className = 'group-dropdown-menu';
@@ -746,39 +798,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             chatHeader.appendChild(groupMenu);
-            
+
             // Очищаем старые обработчики событий
             const newSettingsIcon = chatHeader.querySelector('.group-settings-icon');
             const newGroupMenu = chatHeader.querySelector('.group-dropdown-menu');
-            
+
             // Переключение меню при клике на иконку
             newSettingsIcon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 newGroupMenu.classList.toggle('active');
             });
-            
+
             // Добавляем глобальный обработчик для закрытия меню при клике вне его
             const closeMenuHandler = (e) => {
                 if (!e.target.closest('.group-settings-icon') && !e.target.closest('.group-dropdown-menu')) {
                     newGroupMenu.classList.remove('active');
                 }
             };
-            
+
             // Удаляем старый обработчик и добавляем новый
             document.removeEventListener('click', closeMenuHandler);
             document.addEventListener('click', closeMenuHandler);
-            
+
             // Обработчики для пунктов меню
             newGroupMenu.querySelector('.view-members').addEventListener('click', () => {
                 newGroupMenu.classList.remove('active');
                 viewGroupMembers(currentGroup);
             });
-            
+
             newGroupMenu.querySelector('.rename-group').addEventListener('click', () => {
                 newGroupMenu.classList.remove('active');
                 renameGroup(currentGroup);
             });
-            
+
             newGroupMenu.querySelector('.delete-group').addEventListener('click', () => {
                 newGroupMenu.classList.remove('active');
                 deleteGroup(currentGroup);
@@ -807,7 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 messagesStorage[name] = data.messages.map(message => ({
                     text: message.text,
                     time: message.time,
-                    status: message.status,
+                    status: message.status, // Use status field consistently
                     isSent: message.isSent,
                     sender: message.sender
                 }));
@@ -815,23 +867,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 data.messages.forEach(message => {
                     const messageDiv = document.createElement('div');
                     messageDiv.className = `message ${message.isSent ? 'sent' : 'received'}`;
+                    messageDiv.dataset.time = message.time;
+                    messageDiv.dataset.text = message.text;
                     messageDiv.innerHTML = `
                         <div class="message-content">
                             ${message.isSent ? '' : (currentMode === 'groups' ? `<span class="message-sender">${escapeHTML(message.sender)}</span>` : '')}
                             <span class="message-text">${escapeHTML(message.text)}</span>
-                            <span class="message-time">${message.time}</span>
-                            ${message.isSent ? 
+                            <div class="message-info">
+                                <span class="message-time">${message.time}</span>
+                                ${message.isSent ?
                             `<span class="message-status ${message.status}">
-                                <i class="fas fa-${message.status === 'read' ? 'check-double' : 'check'}"></i>
-                            </span>
-                            <span class="message-actions">
-                                <i class="fas fa-ellipsis-v"></i>
-                                <div class="message-menu">
-                                    <div class="menu-item">Редактировать</div>
-                                    <div class="menu-item">Удалить</div>
-                                    <div class="menu-item">Удалить у всех</div>
-                                </div>
-                            </span>` : ''}
+                                    <i class="fas fa-${message.status === 'read' ? 'check-double' : 'check'}" style="color: ${message.status === 'read' ? '#34b7f1' : '#8e8e8e'}"></i>
+                                </span>
+                                <span class="message-actions">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                    <div class="message-menu">
+                                        <div class="menu-item">Редактировать</div>
+                                        <div class="menu-item">Удалить</div>
+                                        <div class="menu-item">Удалить у всех</div>
+                                    </div>
+                                </span>` : ''}
+                            </div>
                         </div>
                     `;
                     chatMessages.appendChild(messageDiv);
@@ -859,7 +915,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const messagesStorage = currentMode === 'contacts' ? messagesByContact : messagesByGroup;
         const currentTarget = currentMode === 'contacts' ? currentContact : currentGroup;
 
         try {
@@ -876,64 +931,63 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Ошибка отправки сообщения:', errorData.error || response.statusText);
-                alert('Не удалось отправить сообщение: ' + (errorData.error || 'Ошибка сервера'));
-                return;
+                throw new Error('Network response was not ok');
             }
 
             const data = await response.json();
-            if (!data.success) {
-                console.error('Ошибка отправки сообщения:', data.error);
-                alert('Не удалось отправить сообщение: ' + data.error);
-                return;
-            }
-
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message sent';
-            messageDiv.innerHTML = `
-                <div class="message-content">
-                    <span class="message-text">${escapeHTML(text)}</span>
-                    <span class="message-time">${time}</span>
-                    <span class="message-status unread"><i class="fas fa-check"></i></span>
-                    <span class="message-actions">
-                        <i class="fas fa-ellipsis-v"></i>
-                        <div class="message-menu">
-                            <div class="menu-item">Редактировать</div>
-                            <div class="menu-item">Удалить</div>
-                            <div class="menu-item">Удалить у всех</div>
+            if (data.success) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message sent';
+                messageDiv.dataset.time = time;
+                messageDiv.dataset.text = text;
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <span class="message-text">${escapeHTML(text)}</span>
+                        <div class="message-info">
+                            <span class="message-time">${time}</span>
+                            <span class="message-status sent">
+                                <i class="fas fa-check" style="color: #8e8e8e"></i>
+                            </span>
                         </div>
-                    </span>
-                </div>
-            `;
-            chatMessages.appendChild(messageDiv);
-            messageInput.value = '';
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        <span class="message-actions">
+                            <i class="fas fa-ellipsis-v"></i>
+                            <div class="message-menu">
+                                <div class="menu-item">Редактировать</div>
+                                <div class="menu-item">Удалить</div>
+                                <div class="menu-item">Удалить у всех</div>
+                            </div>
+                        </span>
+                    </div>
+                `;
+                chatMessages.appendChild(messageDiv);
+                messageInput.value = '';
+                chatMessages.scrollTop = chatMessages.scrollHeight;
 
-            if (!messagesStorage[currentTarget]) {
-                messagesStorage[currentTarget] = [];
+                // Инициализируем массив сообщений для текущего контакта или группы, если он еще не существует
+                const messagesStorage = currentMode === 'contacts' ? messagesByContact : messagesByGroup;
+                if (!messagesStorage[currentTarget]) {
+                    messagesStorage[currentTarget] = [];
+                }
+                messagesStorage[currentTarget].push({
+                    text: text,
+                    time: time,
+                    status: 'sent', // Используем status вместо isRead
+                    isSent: true
+                });
+
+                lastMessageTime = time;
             }
-            messagesStorage[currentTarget].push({
-                text: text,
-                time: time,
-                status: 'unread',
-                isSent: true,
-                sender: 'You'
-            });
-
-            lastMessageTime = time;
-            
-            // Обновляем сообщения, чтобы убедиться, что все видно обоим пользователям
-            setTimeout(pollMessages, 500);
         } catch (error) {
             console.error('Ошибка при отправке сообщения:', error);
-            alert('Ошибка сервера при отправке сообщения');
+            alert('Ошибка при отправке сообщения');
         }
     }
 
     async function pollMessages() {
+        if (!currentContact && !currentGroup) return;
+
         const currentTarget = currentMode === 'contacts' ? currentContact : currentGroup;
-        if (!currentTarget) return;
+        const messagesStorage = currentMode === 'contacts' ? messagesByContact : messagesByGroup;
 
         try {
             const response = await fetch(`/api/messages?mode=${currentMode}&target=${encodeURIComponent(currentTarget)}${lastMessageTime ? `&since=${lastMessageTime}` : ''}`, {
@@ -943,21 +997,85 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const data = await response.json();
-            if (data.success && data.messages && data.messages.length > 0) {
-                const messagesStorage = currentMode === 'contacts' ? messagesByContact : messagesByGroup;
-
+            if (data.success && data.messages) {
+                // Обновляем статус сообщений в локальном хранилище
                 if (!messagesStorage[currentTarget]) {
                     messagesStorage[currentTarget] = [];
                 }
 
                 data.messages.forEach(message => {
-                    // Улучшенная проверка на дубликаты
-                    const messageKey = `${message.sender}-${message.text}-${message.time}`;
-                    const exists = messagesStorage[currentTarget].some(m => 
-                        `${m.sender}-${m.text}-${m.time}` === messageKey
-                    );
-                    
-                    if (!exists) {
+                    const existingMessage = document.querySelector(`.message[data-time="${message.time}"][data-text="${message.text}"]`);
+
+                    if (existingMessage) {
+                        // Обновляем статус существующего сообщения
+                        if (message.isSent) {
+                            const statusIcon = existingMessage.querySelector('.message-status i');
+                            const messageStatus = existingMessage.querySelector('.message-status');
+                            if (statusIcon && messageStatus) {
+                                const currentStatus = messageStatus.classList.contains('read') ? 'read' : 'sent';
+                                if (message.status === 'read' && currentStatus !== 'read') {
+                                    // Обновляем на двойную галочку и меняем цвет
+                                    messageStatus.classList.remove('sent');
+                                    messageStatus.classList.add('read');
+                                    statusIcon.className = 'fas fa-check-double';
+                                    statusIcon.style.color = '#34b7f1';
+                                    // Обновляем статус в локальном хранилище
+                                    const messageIndex = messagesStorage[currentTarget].findIndex(
+                                        m => m.time === message.time && m.text === message.text
+                                    );
+                                    if (messageIndex !== -1) {
+                                        messagesStorage[currentTarget][messageIndex].status = 'read';
+                                    }
+                                } else if (message.status === 'sent' && currentStatus !== 'sent') {
+                                    // Возвращаем к одиночной галочке (если нужно)
+                                    messageStatus.classList.remove('read');
+                                    messageStatus.classList.add('sent');
+                                    statusIcon.className = 'fas fa-check';
+                                    statusIcon.style.color = '#8e8e8e';
+                                    // Обновляем статус в локальном хранилище
+                                    const messageIndex = messagesStorage[currentTarget].findIndex(
+                                        m => m.time === message.time && m.text === message.text
+                                    );
+                                    if (messageIndex !== -1) {
+                                        messagesStorage[currentTarget][messageIndex].status = 'sent';
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Добавляем новое сообщение
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = `message ${message.isSent ? 'sent' : 'received'}`;
+                        messageDiv.dataset.time = message.time;
+                        messageDiv.dataset.text = message.text;
+
+                        messageDiv.innerHTML = `
+                            <div class="message-content">
+                                ${message.isSent ? '' : (currentMode === 'groups' ? `<span class="message-sender">${escapeHTML(message.sender)}</span>` : '')}
+                                <span class="message-text">${escapeHTML(message.text)}</span>
+                                <div class="message-info">
+                                    <span class="message-time">${message.time}</span>
+                                    ${message.isSent ? `
+                                        <span class="message-status ${message.status}">
+                                            <i class="fas fa-${message.status === 'read' ? 'check-double' : 'check'}" 
+                                               style="color: ${message.status === 'read' ? '#34b7f1' : '#8e8e8e'}"></i>
+                                        </span>
+                                    ` : ''}
+                                </div>
+                                ${message.isSent ? `
+                                    <span class="message-actions">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                        <div class="message-menu">
+                                            <div class="menu-item">Редактировать</div>
+                                            <div class="menu-item">Удалить</div>
+                                            <div class="menu-item">Удалить у всех</div>
+                                        </div>
+                                    </span>
+                                ` : ''}
+                            </div>
+                        `;
+
+                        chatMessages.appendChild(messageDiv);
                         messagesStorage[currentTarget].push({
                             text: message.text,
                             time: message.time,
@@ -965,44 +1083,29 @@ document.addEventListener('DOMContentLoaded', () => {
                             isSent: message.isSent,
                             sender: message.sender
                         });
-
-                        const messageDiv = document.createElement('div');
-                        messageDiv.className = `message ${message.isSent ? 'sent' : 'received'}`;
-                        messageDiv.innerHTML = `
-                            <div class="message-content">
-                                ${message.isSent ? '' : (currentMode === 'groups' ? `<span class="message-sender">${escapeHTML(message.sender)}</span>` : '')}
-                                <span class="message-text">${escapeHTML(message.text)}</span>
-                                <span class="message-time">${message.time}</span>
-                                ${message.isSent ? 
-                                `<span class="message-status ${message.status}">
-                                    <i class="fas fa-${message.status === 'read' ? 'check-double' : 'check'}"></i>
-                                </span>
-                                <span class="message-actions">
-                                    <i class="fas fa-ellipsis-v"></i>
-                                    <div class="message-menu">
-                                        <div class="menu-item">Редактировать</div>
-                                        <div class="menu-item">Удалить</div>
-                                        <div class="menu-item">Удалить у всех</div>
-                                    </div>
-                                </span>` : ''}
-                            </div>
-                        `;
-                        chatMessages.appendChild(messageDiv);
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
-
-                        lastMessageTime = message.time;
                     }
                 });
+
+                if (data.messages.length > 0) {
+                    lastMessageTime = data.messages[data.messages.length - 1].time;
+                    if (data.messages.some(m => !m.isSent)) {
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
+                }
             }
         } catch (error) {
             console.error('Ошибка при получении сообщений:', error);
         }
     }
 
+    // Добавляем обработчики событий
     sendButton.addEventListener('click', sendMessage);
     messageInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendMessage();
     });
+
+    // Запускаем периодическую проверку сообщений
+    setInterval(pollMessages, 2000);
 
     function closeAllMenus() {
         const menus = document.querySelectorAll('.message-menu.active');
@@ -1037,7 +1140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Нельзя редактировать чужие сообщения');
             return;
         }
-        
+
         const messageContent = message.querySelector('.message-content');
         const messageText = message.querySelector('.message-text');
         const messagesStorage = currentMode === 'contacts' ? messagesByContact : messagesByGroup;
@@ -1048,6 +1151,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (menuItem.textContent.includes('Редактировать')) {
             const originalText = messageText.textContent;
+            // Сохраняем оригинальное содержимое для восстановления при отмене
+            const originalContent = messageContent.innerHTML;
+            // Заменяем содержимое messageContent на поле редактирования
             messageContent.innerHTML = `
                 <div class="edit-container">
                     <input type="text" class="edit-input" value="${originalText}">
@@ -1060,17 +1166,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const editInput = messageContent.querySelector('.edit-input');
             editInput.focus();
+            // Устанавливаем курсор в конец текста
+            const length = editInput.value.length;
+            editInput.setSelectionRange(length, length);
 
             messageContent.querySelector('.save-btn').addEventListener('click', () => {
                 const newText = editInput.value.trim();
                 if (newText) {
                     const originalStatus = messagesStorage[currentTarget][messageIndex].status;
                     messageContent.innerHTML = `
+                        ${currentMode === 'groups' && !messagesStorage[currentTarget][messageIndex].isSent ? `<span class="message-sender">${escapeHTML(messagesStorage[currentTarget][messageIndex].sender)}</span>` : ''}
                         <span class="message-text">${escapeHTML(newText)}</span>
-                        <span class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        <span class="message-status ${originalStatus}">
-                            <i class="fas fa-${originalStatus === 'read' ? 'check-double' : 'check'}"></i>
-                        </span>
+                        <div class="message-info">
+                            <span class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span class="message-status ${originalStatus}">
+                                <i class="fas fa-${originalStatus === 'read' ? 'check-double' : 'check'}" style="color: ${originalStatus === 'read' ? '#34b7f1' : '#8e8e8e'}"></i>
+                            </span>
+                        </div>
                         <span class="message-actions">
                             <i class="fas fa-ellipsis-v"></i>
                             <div class="message-menu">
@@ -1086,21 +1198,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             messageContent.querySelector('.cancel-btn').addEventListener('click', () => {
-                messageContent.innerHTML = `
-                    <span class="message-text">${escapeHTML(originalText)}</span>
-                    <span class="message-time">${messagesStorage[currentTarget][messageIndex].time}</span>
-                    <span class="message-status ${messagesStorage[currentTarget][messageIndex].status}">
-                        <i class="fas fa-${messagesStorage[currentTarget][messageIndex].status === 'read' ? 'check-double' : 'check'}"></i>
-                    </span>
-                    <span class="message-actions">
-                        <i class="fas fa-ellipsis-v"></i>
-                        <div class="message-menu">
-                            <div class="menu-item">Редактировать</div>
-                            <div class="menu-item">Удалить</div>
-                            <div class="menu-item">Удалить у всех</div>
-                        </div>
-                    </span>
-                `;
+                // Восстанавливаем оригинальное содержимое
+                messageContent.innerHTML = originalContent;
             });
 
         } else if (menuItem.textContent.includes('Удалить')) {
@@ -1109,7 +1208,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (menuItem.textContent.includes('Удалить у всех')) {
             // Реализуем функционал "Удалить у всех"
             const messageData = messagesStorage[currentTarget][messageIndex];
-            
+
             // Отправляем запрос на сервер для удаления сообщения у всех участников
             fetch('/api/messages/deleteForAll', {
                 method: 'POST',
@@ -1122,21 +1221,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 }),
                 credentials: 'include'
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    message.remove();
-                    messagesStorage[currentTarget].splice(messageIndex, 1);
-                    console.log('Сообщение успешно удалено у всех');
-                } else {
-                    console.error('Ошибка при удалении сообщения у всех:', data.error);
-                    alert('Не удалось удалить сообщение: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Ошибка сети при удалении сообщения:', error);
-                alert('Ошибка сервера при удалении сообщения');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        message.remove();
+                        messagesStorage[currentTarget].splice(messageIndex, 1);
+                        console.log('Сообщение успешно удалено у всех');
+                    } else {
+                        console.error('Ошибка при удалении сообщения у всех:', data.error);
+                        alert('Не удалось удалить сообщение: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка сети при удалении сообщения:', error);
+                    alert('Ошибка сервера при удалении сообщения');
+                });
         }
     });
 
@@ -1192,7 +1291,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
             });
-            
+
             const data = await response.json();
             if (data.success) {
                 const modal = document.createElement('div');
@@ -1201,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="members-content">
                         <div class="members-header">
                             <h3>Участники группы "${escapeHTML(groupName)}"</h3>
-                            <span class="members-close">&times;</span>
+                            <span class="members-close">×</span>
                         </div>
                         <div class="members-list">
                             ${data.members.map(member => `
@@ -1216,20 +1315,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 `;
-                
+
                 document.body.appendChild(modal);
-                
+
                 modal.querySelector('.members-close').addEventListener('click', () => {
                     modal.remove();
                 });
-                
+
                 // Закрытие по клику вне контента
                 modal.addEventListener('click', (e) => {
                     if (e.target === modal) {
                         modal.remove();
                     }
                 });
-                
+
                 // Обработчик для кнопки добавления участников
                 modal.querySelector('.add-members-btn').addEventListener('click', () => {
                     addGroupMembers(groupName, data.members);
@@ -1250,15 +1349,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // Получаем список контактов
             const response = await fetch('/api/contacts', { credentials: 'include' });
             const data = await response.json();
-            
+
             if (!data.success) {
                 console.error('Ошибка загрузки контактов:', data.error);
                 alert('Не удалось загрузить контакты: ' + data.error);
                 return;
             }
-            
+
             const contacts = data.contacts || [];
-            
+
             // Создаем модальное окно для выбора контактов
             const modal = document.createElement('div');
             modal.className = 'members-modal';
@@ -1266,48 +1365,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="members-content">
                     <div class="members-header">
                         <h3>Добавить участников в группу "${escapeHTML(groupName)}"</h3>
-                        <span class="members-close">&times;</span>
+                        <span class="members-close">×</span>
                     </div>
                     <div class="members-list">
                         ${contacts.length > 0 ? contacts.map(contact => {
-                            const isAlreadyMember = existingMembers.includes(contact);
-                            return `
+                const isAlreadyMember = existingMembers.includes(contact);
+                return `
                                 <div class="member">
                                     <div class="avatar"></div>
                                     <span class="name">${escapeHTML(contact)}</span>
                                 </div>
                             `;
-                        }).join('') : '<p>У вас нет контактов. Добавьте контакты через поиск.</p>'}
+            }).join('') : '<p>У вас нет контактов. Добавьте контакты через поиск.</p>'}
                     </div>
                     <div class="add-members-actions">
                         <button class="save-members-btn">Добавить выбранные контакты</button>
                     </div>
                 </div>
             `;
-            
+
             document.body.appendChild(modal);
-            
+
             modal.querySelector('.members-close').addEventListener('click', () => {
                 modal.remove();
             });
-            
+
             // Закрытие по клику вне контента
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
                     modal.remove();
                 }
             });
-            
+
             // Обработчик для кнопки сохранения
             modal.querySelector('.save-members-btn').addEventListener('click', async () => {
                 const selectedContacts = Array.from(modal.querySelectorAll('.member-checkbox:checked:not([disabled])'))
                     .map(checkbox => checkbox.dataset.username);
-                
+
                 if (selectedContacts.length === 0) {
                     alert('Выберите хотя бы один контакт для добавления в группу');
                     return;
                 }
-                
+
                 try {
                     const response = await fetch('/api/groups/members/add', {
                         method: 'POST',
@@ -1318,7 +1417,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }),
                         credentials: 'include'
                     });
-                    
+
                     const data = await response.json();
                     if (data.success) {
                         modal.remove();
@@ -1351,7 +1450,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="rename-content">
                 <div class="rename-header">
                     <h3>Переименовать группу "${escapeHTML(groupName)}"</h3>
-                    <span class="rename-close">&times;</span>
+                    <span class="rename-close">×</span>
                 </div>
                 <div class="rename-form">
                     <input type="text" class="rename-input" placeholder="Новое название группы" value="${escapeHTML(groupName)}">
@@ -1359,27 +1458,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
-        
+
         modal.querySelector('.rename-close').addEventListener('click', () => {
             modal.remove();
         });
-        
+
         // Закрытие по клику вне контента
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 modal.remove();
             }
         });
-        
+
         modal.querySelector('.rename-btn').addEventListener('click', async () => {
             const newName = modal.querySelector('.rename-input').value.trim();
             if (!newName) {
                 alert('Введите название группы');
                 return;
             }
-            
+
             try {
                 const response = await fetch('/api/groups/rename', {
                     method: 'POST',
@@ -1390,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }),
                     credentials: 'include'
                 });
-                
+
                 const data = await response.json();
                 if (data.success) {
                     currentGroup = newName;
@@ -1412,7 +1511,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm(`Вы уверены, что хотите удалить группу "${groupName}"?`)) {
             return;
         }
-        
+
         try {
             const response = await fetch('/api/groups/delete', {
                 method: 'POST',
@@ -1420,28 +1519,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ name: groupName }),
                 credentials: 'include'
             });
-            
+
             const data = await response.json();
             if (data.success) {
                 // Очищаем чат и заголовок
                 chatMessages.innerHTML = '';
                 document.querySelector('.chat-header .name').textContent = '';
                 document.querySelector('.chat-header .status').textContent = '';
-                
+
                 // Удаляем меню группы и иконку настроек
                 const groupMenu = document.querySelector('.group-dropdown-menu');
                 if (groupMenu) {
                     groupMenu.remove();
                 }
-                
+
                 const settingsIcon = document.querySelector('.group-settings-icon');
                 if (settingsIcon) {
                     settingsIcon.remove();
                 }
-                
+
                 // Сбрасываем текущую группу
                 currentGroup = null;
-                
+
                 // Обновляем список групп
                 loadGroups();
             } else {

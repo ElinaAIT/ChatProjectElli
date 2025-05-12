@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, session
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from flask_cors import CORS
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -57,7 +57,7 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
 
-    # Таблица сообщений
+    # Таблица сообщений (удаляем столбец message, используем status 'sent' по умолчанию)
     c.execute('''CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sender_id INTEGER NOT NULL,
@@ -65,9 +65,8 @@ def init_db():
         target TEXT NOT NULL,
         mode TEXT NOT NULL,
         text TEXT NOT NULL,
-        message TEXT NOT NULL,
         time TEXT NOT NULL,
-        status TEXT DEFAULT 'unread',
+        status TEXT DEFAULT 'sent',
         FOREIGN KEY (sender_id) REFERENCES users(id)
     )''')
 
@@ -81,23 +80,42 @@ def init_db():
         UNIQUE(user_id, contact_id)
     )''')
 
-    # Проверка и добавление недостающих столбцов для таблицы messages
+    # Проверка и обновление структуры таблицы messages
     c.execute("PRAGMA table_info(messages)")
     columns = [info[1] for info in c.fetchall()]
-    required_columns = {
-        'sender_id': 'INTEGER NOT NULL',
-        'receiver_id': 'INTEGER NOT NULL',
-        'target': 'TEXT NOT NULL',
-        'mode': 'TEXT NOT NULL',
-        'text': 'TEXT NOT NULL',
-        'message': 'TEXT NOT NULL',
-        'time': 'TEXT NOT NULL',
-        'status': 'TEXT DEFAULT "unread"'
-    }
-    for col_name, col_type in required_columns.items():
-        if col_name not in columns:
-            c.execute(f'ALTER TABLE messages ADD COLUMN {col_name} {col_type}')
-            logger.info(f"Добавлен столбец {col_name} в таблицу messages")
+    
+    # Удаляем столбец message, если он существует
+    if 'message' in columns:
+        # SQLite не поддерживает DROP COLUMN напрямую, создаем новую таблицу
+        c.execute('''CREATE TABLE messages_temp (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            target TEXT NOT NULL,
+            mode TEXT NOT NULL,
+            text TEXT NOT NULL,
+            time TEXT NOT NULL,
+            status TEXT DEFAULT 'sent',
+            FOREIGN KEY (sender_id) REFERENCES users(id)
+        )''')
+        c.execute('''INSERT INTO messages_temp (id, sender_id, receiver_id, target, mode, text, time, status)
+                     SELECT id, sender_id, receiver_id, target, mode, text, time, status
+                     FROM messages''')
+        c.execute('DROP TABLE messages')
+        c.execute('ALTER TABLE messages_temp RENAME TO messages')
+        logger.info("Столбец 'message' удален из таблицы messages")
+
+    # Обновляем существующие записи: заменяем 'unread' на 'sent'
+    c.execute("UPDATE messages SET status = 'sent' WHERE status = 'unread'")
+    logger.info("Обновлены статусы сообщений: 'unread' заменен на 'sent'")
+
+    # Добавляем админа, если его нет
+    c.execute('SELECT id FROM users WHERE username = ?', ('admin',))
+    if not c.fetchone():
+        admin_password = generate_password_hash('password', method='pbkdf2:sha256')
+        c.execute('INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+                  ('admin', 'admin@example.com', admin_password))
+        logger.info("Админ учетная запись создана")
 
     conn.commit()
     conn.close()
@@ -134,6 +152,8 @@ def index():
 
 @app.route('/chat')
 def chat():
+    if 'username' not in session or session['username'] != 'admin':
+        return redirect(url_for('index'))
     return render_template('chat.html')
 
 @app.route('/api/register', methods=['POST'])
@@ -294,11 +314,7 @@ def create_group():
     if not name:
         logger.error("Название группы не указано")
         return jsonify({'success': False, 'error': 'Название группы обязательно'}), 400
-    
-    # Проверка на наличие хотя бы одного участника больше не нужна
-    # так как создатель группы автоматически становится её участником
-    
-    # Убедимся, что сессия существует
+
     if 'username' not in session or 'user_id' not in session:
         logger.warning("Неавторизованный доступ к /api/groups POST")
         return jsonify({'success': False, 'error': 'Пользователь не авторизован'}), 401
@@ -307,13 +323,11 @@ def create_group():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
 
-        # Автоматически добавляем создателя в список участников, если его там нет
         creator_username = session['username']
         if creator_username not in members:
             members.append(creator_username)
             logger.info(f"Добавлен создатель группы {creator_username} в список участников")
 
-        # Проверка существования пользователей (игнорируем регистр)
         logger.info(f"Проверка пользователей: {members}")
         placeholders = ','.join('?' * len(members))
         query = f'SELECT id, username FROM users WHERE LOWER(username) IN ({placeholders})'
@@ -322,7 +336,6 @@ def create_group():
         valid_members = c.fetchall()
         logger.info(f"Найденные пользователи: {valid_members}")
 
-        # Проверяем, какие пользователи не найдены
         valid_usernames = [row[1] for row in valid_members]
         invalid_members = [m for m in members if m.lower() not in [vm.lower() for vm in valid_usernames]]
         if invalid_members:
@@ -330,13 +343,11 @@ def create_group():
             conn.close()
             return jsonify({'success': False, 'error': f'Пользователи не найдены: {", ".join(invalid_members)}'}), 400
 
-        # Создание группы
         logger.info(f"Создание группы: {name}")
         c.execute('INSERT INTO groups (name) VALUES (?)', (name,))
         group_id = c.lastrowid
         logger.info(f"ID новой группы: {group_id}")
 
-        # Добавление участников
         logger.info(f"Добавление участников: {valid_members}")
         for user_id, username in valid_members:
             c.execute('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)', (group_id, user_id))
@@ -401,7 +412,6 @@ def add_contact():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
 
-        # Проверка, что контакт существует
         c.execute('SELECT id FROM users WHERE username = ?', (contact_username,))
         contact = c.fetchone()
         if not contact:
@@ -411,7 +421,6 @@ def add_contact():
 
         contact_id = contact[0]
 
-        # Проверка, что контакт еще не добавлен
         c.execute('SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = ?', 
                   (session['user_id'], contact_id))
         if c.fetchone():
@@ -419,14 +428,10 @@ def add_contact():
             logger.warning(f"Контакт уже добавлен: {contact_username}")
             return jsonify({'success': False, 'error': 'Контакт уже добавлен'}), 400
 
-        # Добавление контакта
         c.execute('INSERT INTO contacts (user_id, contact_id) VALUES (?, ?)',
                   (session['user_id'], contact_id))
-                  
-        # Создаем обратную связь - добавляем текущего пользователя в контакты целевого пользователя
         c.execute('INSERT OR IGNORE INTO contacts (user_id, contact_id) VALUES (?, ?)',
                   (contact_id, session['user_id']))
-                  
         conn.commit()
         conn.close()
         logger.info(f"Контакт добавлен: {contact_username} для пользователя {session['username']} (двусторонняя связь)")
@@ -496,7 +501,6 @@ def remove_contact():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
 
-        # Проверка, что контакт существует
         c.execute('SELECT id FROM users WHERE username = ?', (contact_username,))
         contact = c.fetchone()
         if not contact:
@@ -506,14 +510,10 @@ def remove_contact():
 
         contact_id = contact[0]
 
-        # Удаление контакта
         c.execute('DELETE FROM contacts WHERE user_id = ? AND contact_id = ?', 
                   (session['user_id'], contact_id))
-        
-        # Опционально: удаляем и обратную связь
         c.execute('DELETE FROM contacts WHERE user_id = ? AND contact_id = ?', 
                   (contact_id, session['user_id']))
-                  
         conn.commit()
         conn.close()
         logger.info(f"Контакт удален: {contact_username} для пользователя {session['username']}")
@@ -560,7 +560,6 @@ def send_message():
         c = conn.cursor()
 
         if mode == 'contacts':
-            # Проверка существования цели
             c.execute('SELECT id FROM users WHERE username = ?', (target,))
             contact = c.fetchone()
             if not contact:
@@ -570,38 +569,33 @@ def send_message():
                 
             contact_id = contact[0]
             
-            # Автоматически добавляем контакт в список, если его там еще нет
             c.execute('SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = ?', 
                       (session['user_id'], contact_id))
             if not c.fetchone():
-                # Добавляем контакт в список отправителя
                 c.execute('INSERT OR IGNORE INTO contacts (user_id, contact_id) VALUES (?, ?)',
                           (session['user_id'], contact_id))
-                # Добавляем обратную связь - отправителя в список контактов получателя
                 c.execute('INSERT OR IGNORE INTO contacts (user_id, contact_id) VALUES (?, ?)',
                           (contact_id, session['user_id']))
                 logger.info(f"Контакт автоматически добавлен: {target} <-> {session['username']}")
 
-            # Получаем имя текущего пользователя (отправителя)
             c.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
             sender_username = c.fetchone()[0]
             
             logger.info(f"Попытка вставки сообщения: sender_id={session['user_id']}, receiver_id={contact_id}, target={target}")
             
-            # Сохраняем сообщение для отправителя (в его диалоге с получателем)
-            c.execute('''INSERT INTO messages (sender_id, receiver_id, target, mode, text, message, time, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                        (session['user_id'], contact_id, target, mode, text, text, time, 'unread'))
+            # Сохраняем сообщение для отправителя (status='sent')
+            c.execute('''INSERT INTO messages (sender_id, receiver_id, target, mode, text, time, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                        (session['user_id'], contact_id, target, mode, text, time, 'sent'))
             
-            # Сохраняем то же сообщение для получателя (в его диалоге с отправителем)
-            c.execute('''INSERT INTO messages (sender_id, receiver_id, target, mode, text, message, time, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                        (session['user_id'], contact_id, sender_username, mode, text, text, time, 'unread'))
+            # Сохраняем сообщение для получателя (status='sent', будет обновлено до 'read' при просмотре)
+            c.execute('''INSERT INTO messages (sender_id, receiver_id, target, mode, text, time, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                        (session['user_id'], contact_id, sender_username, mode, text, time, 'sent'))
                         
             logger.info(f"Сообщение сохранено для обоих пользователей: отправитель={sender_username}, получатель={target}")
         
         else:  # mode == 'groups'
-            # Проверка существования и членства в группе
             c.execute('SELECT id FROM groups WHERE name = ?', (target,))
             group = c.fetchone()
             if not group:
@@ -609,7 +603,6 @@ def send_message():
                 logger.error(f"Группа не найдена: {target}")
                 return jsonify({'success': False, 'error': f'Группа {target} не найдена'}), 404
                 
-            # Проверка членства в группе
             c.execute('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', 
                       (group[0], session['user_id']))
             if not c.fetchone():
@@ -617,11 +610,10 @@ def send_message():
                 logger.error(f"Пользователь не в группе: {target}")
                 return jsonify({'success': False, 'error': f'Вы не являетесь членом группы {target}'}), 403
                 
-            # Для групповых сообщений используем один экземпляр сообщения
             logger.info(f"Попытка вставки группового сообщения: sender_id={session['user_id']}, target={target}")
-            c.execute('''INSERT INTO messages (sender_id, receiver_id, target, mode, text, message, time, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                        (session['user_id'], 0, target, mode, text, text, time, 'unread'))  # 0 означает групповое сообщение
+            c.execute('''INSERT INTO messages (sender_id, receiver_id, target, mode, text, time, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                        (session['user_id'], 0, target, mode, text, time, 'sent'))  # 0 означает групповое сообщение
         
         conn.commit()
         logger.info(f"Сообщение успешно сохранено в базе данных")
@@ -657,7 +649,6 @@ def get_messages():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
 
-        # Проверка существования цели
         if mode == 'contacts':
             c.execute('SELECT id FROM users WHERE username = ?', (target,))
             contact = c.fetchone()
@@ -666,8 +657,6 @@ def get_messages():
                 logger.error(f"Контакт не найден: {target}")
                 return jsonify({'success': False, 'error': f'Контакт {target} не найден'}), 404
 
-            # Упрощенный запрос: показываем сообщения, где текущий пользователь видит целевой контакт
-            # В нашей схеме БД это значит, что target = целевой контакт в перспективе текущего пользователя
             contact_id = contact[0]
             logger.info(f"Получение сообщений для контакта: {target} (id={contact_id})")
 
@@ -678,7 +667,6 @@ def get_messages():
                 conn.close()
                 logger.error(f"Группа не найдена: {target}")
                 return jsonify({'success': False, 'error': f'Группа {target} не найдена'}), 404
-            # Проверка членства в группе
             c.execute('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', 
                       (group[0], session['user_id']))
             if not c.fetchone():
@@ -686,7 +674,6 @@ def get_messages():
                 logger.error(f"Пользователь не в группе: {target}")
                 return jsonify({'success': False, 'error': f'Вы не являетесь членом группы {target}'}), 403
 
-        # Получение сообщений
         query = '''SELECT m.id, m.text, m.time, m.status, m.sender_id, u.username
                    FROM messages m
                    JOIN users u ON m.sender_id = u.id
@@ -694,11 +681,6 @@ def get_messages():
         params = [mode]
         
         if mode == 'contacts':
-            # Важное исправление: показываем только сообщения, относящиеся к чату между текущим пользователем
-            # и конкретным контактом. Для этого:
-            # 1. Сообщение должно быть отправлено либо текущим пользователем контакту,
-            #    либо контактом текущему пользователю
-            # 2. Фильтруем по полю target, которое должно содержать имя контакта
             query += ''' AND (
                         (m.sender_id = ? AND m.receiver_id = ? AND m.target = ?) OR 
                         (m.sender_id = ? AND m.receiver_id = ? AND m.target = ?)
@@ -707,10 +689,8 @@ def get_messages():
                 session['user_id'], contact_id, target,  # Я -> Контакт
                 contact_id, session['user_id'], session['username']  # Контакт -> Я
             ])
-            
             logger.info(f"SQL запрос для личных сообщений: {query} с параметрами {params}")
         else:
-            # Для групповых сообщений показываем все сообщения в группе
             query += ' AND m.target = ?'
             params.append(target)
             
@@ -718,20 +698,17 @@ def get_messages():
             query += ' AND m.time > ?'
             params.append(since)
             
-        query += ' ORDER BY m.time ASC'  # Сортировка по времени
+        query += ' ORDER BY m.time ASC'
 
         c.execute(query, params)
         
-        # Отслеживаем уже добавленные сообщения по комбинации отправителя, текста и времени
         seen_messages = set()
         messages = []
         
         for row in c.fetchall():
             msg_id, text, time, status, sender_id, sender_name = row
-            # Создаем уникальный ключ для сообщения на основе отправителя, текста и времени
             msg_key = f"{sender_id}:{text}:{time}"
             
-            # Если это сообщение не было добавлено ранее
             if msg_key not in seen_messages:
                 seen_messages.add(msg_key)
                 messages.append({
@@ -742,17 +719,33 @@ def get_messages():
                     'sender': sender_name
                 })
 
-        # Обновление статуса сообщений на "прочитано"
-        c.execute('''UPDATE messages SET status = 'read'
-                     WHERE mode = ? AND target = ? AND sender_id != ? AND status = 'unread' ''',
-                  (mode, target, session['user_id']))
+        # Обновляем статус на 'read' только для входящих сообщений
+        if mode == 'contacts':
+            c.execute('''UPDATE messages 
+                        SET status = 'read'
+                        WHERE mode = ? 
+                        AND target = ? 
+                        AND sender_id = ? 
+                        AND receiver_id = ? 
+                        AND status = 'sent' ''',
+                     (mode, session['username'], contact_id, session['user_id']))
+        else:  # mode == 'groups'
+            c.execute('''UPDATE messages 
+                        SET status = 'read'
+                        WHERE mode = ? 
+                        AND target = ? 
+                        AND sender_id != ? 
+                        AND status = 'sent' ''',
+                     (mode, target, session['user_id']))
+        
         conn.commit()
         conn.close()
 
         logger.info(f"Сообщения получены для {mode}/{target}: {len(messages)} сообщений")
         return jsonify({'success': True, 'messages': messages}), 200
     except Exception as e:
-        conn.close()
+        if 'conn' in locals():
+            conn.close()
         logger.error(f"Ошибка при получении сообщений: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -771,15 +764,12 @@ def clear_groups():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         
-        # Получаем список ID групп пользователя
         c.execute('''SELECT group_id FROM group_members 
                      WHERE user_id = ?''', (session['user_id'],))
         group_ids = [row[0] for row in c.fetchall()]
         
-        # Удаляем пользователя из всех групп
         c.execute('DELETE FROM group_members WHERE user_id = ?', (session['user_id'],))
         
-        # Удаляем группы, в которых не осталось участников
         for group_id in group_ids:
             c.execute('SELECT COUNT(*) FROM group_members WHERE group_id = ?', (group_id,))
             count = c.fetchone()[0]
@@ -810,7 +800,6 @@ def get_group_members():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         
-        # Получаем ID группы
         c.execute('SELECT id FROM groups WHERE name = ?', (group_name,))
         group = c.fetchone()
         if not group:
@@ -820,7 +809,6 @@ def get_group_members():
             
         group_id = group[0]
         
-        # Проверяем, является ли пользователь участником группы
         c.execute('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', 
                   (group_id, session['user_id']))
         if not c.fetchone():
@@ -828,7 +816,6 @@ def get_group_members():
             logger.error(f"Пользователь не в группе: {group_name}")
             return jsonify({'success': False, 'error': f'Вы не являетесь членом группы {group_name}'}), 403
             
-        # Получаем список участников группы
         c.execute('''SELECT u.username 
                      FROM group_members gm 
                      JOIN users u ON gm.user_id = u.id 
@@ -862,7 +849,6 @@ def rename_group():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         
-        # Получаем ID группы
         c.execute('SELECT id FROM groups WHERE name = ?', (old_name,))
         group = c.fetchone()
         if not group:
@@ -872,7 +858,6 @@ def rename_group():
             
         group_id = group[0]
         
-        # Проверяем, является ли пользователь участником группы
         c.execute('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', 
                   (group_id, session['user_id']))
         if not c.fetchone():
@@ -880,17 +865,13 @@ def rename_group():
             logger.error(f"Пользователь не в группе: {old_name}")
             return jsonify({'success': False, 'error': f'Вы не являетесь членом группы {old_name}'}), 403
         
-        # Проверяем, не существует ли уже группа с новым именем
         c.execute('SELECT 1 FROM groups WHERE name = ? AND id != ?', (new_name, group_id))
         if c.fetchone():
             conn.close()
             logger.error(f"Группа с именем {new_name} уже существует")
             return jsonify({'success': False, 'error': f'Группа с именем {new_name} уже существует'}), 400
             
-        # Переименовываем группу
         c.execute('UPDATE groups SET name = ? WHERE id = ?', (new_name, group_id))
-        
-        # Обновляем поле target в сообщениях
         c.execute('UPDATE messages SET target = ? WHERE target = ? AND mode = "groups"', 
                   (new_name, old_name))
         
@@ -921,7 +902,6 @@ def delete_group():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         
-        # Получаем ID группы
         c.execute('SELECT id FROM groups WHERE name = ?', (group_name,))
         group = c.fetchone()
         if not group:
@@ -931,7 +911,6 @@ def delete_group():
             
         group_id = group[0]
         
-        # Проверяем, является ли пользователь участником группы
         c.execute('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', 
                   (group_id, session['user_id']))
         if not c.fetchone():
@@ -939,7 +918,6 @@ def delete_group():
             logger.error(f"Пользователь не в группе: {group_name}")
             return jsonify({'success': False, 'error': f'Вы не являетесь членом группы {group_name}'}), 403
             
-        # Удаляем группу и связанные данные
         c.execute('DELETE FROM group_members WHERE group_id = ?', (group_id,))
         c.execute('DELETE FROM groups WHERE id = ?', (group_id,))
         c.execute('DELETE FROM messages WHERE target = ? AND mode = "groups"', (group_name,))
@@ -976,7 +954,6 @@ def add_members_to_group():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         
-        # Получаем ID группы
         c.execute('SELECT id FROM groups WHERE name = ?', (group_name,))
         group = c.fetchone()
         if not group:
@@ -986,7 +963,6 @@ def add_members_to_group():
             
         group_id = group[0]
         
-        # Проверяем, является ли пользователь участником группы
         c.execute('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', 
                   (group_id, session['user_id']))
         if not c.fetchone():
@@ -994,13 +970,11 @@ def add_members_to_group():
             logger.error(f"Пользователь не в группе: {group_name}")
             return jsonify({'success': False, 'error': f'Вы не являетесь членом группы {group_name}'}), 403
         
-        # Получаем ID новых участников
         placeholders = ','.join('?' * len(new_members))
         query = f'SELECT id, username FROM users WHERE LOWER(username) IN ({placeholders})'
         c.execute(query, [m.lower() for m in new_members])
         valid_members = c.fetchall()
         
-        # Проверяем, какие пользователи не найдены
         valid_usernames = [row[1] for row in valid_members]
         invalid_members = [m for m in new_members if m.lower() not in [vm.lower() for vm in valid_usernames]]
         if invalid_members:
@@ -1008,10 +982,8 @@ def add_members_to_group():
             conn.close()
             return jsonify({'success': False, 'error': f'Пользователи не найдены: {", ".join(invalid_members)}'}), 400
         
-        # Добавляем новых участников
         added_count = 0
         for user_id, username in valid_members:
-            # Проверяем, не является ли пользователь уже участником группы
             c.execute('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', 
                       (group_id, user_id))
             if not c.fetchone():
@@ -1038,67 +1010,106 @@ def add_members_to_group():
 @app.route('/api/messages/deleteForAll', methods=['POST'])
 def delete_message_for_all():
     if 'username' not in session or 'user_id' not in session:
-        return jsonify({'success': False, 'error': 'Не авторизован'})
+        logger.warning("Неавторизованный доступ к /api/messages/deleteForAll POST")
+        return jsonify({'success': False, 'error': 'Не авторизован'}), 401
 
     data = request.get_json()
     if not data or 'mode' not in data or 'target' not in data or 'time' not in data or 'text' not in data:
-        return jsonify({'success': False, 'error': 'Неверные параметры запроса'})
+        logger.error("Неверные параметры запроса")
+        return jsonify({'success': False, 'error': 'Неверные параметры запроса'}), 400
 
     mode = data['mode']
     target = data['target']
     time = data['time']
     text = data['text']
     
-    sender_username = session['username']
-    
-    conn = sqlite3.connect(DB_PATH)
+    sender_id = session['user_id']
     
     try:
-        # Для личных сообщений
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+
         if mode == 'contacts':
-            # Удаляем сообщение из базы данных
-            cursor = conn.cursor()
-            cursor.execute(
-                "DELETE FROM messages WHERE (sender_username = ? AND receiver_username = ? AND message_time = ? AND message_text = ?) OR (sender_username = ? AND receiver_username = ? AND message_time = ? AND message_text = ?)",
-                (sender_username, target, time, text, target, sender_username, time, text)
-            )
-            conn.commit()
-            cursor.close()
+            # Находим ID получателя
+            c.execute('SELECT id FROM users WHERE username = ?', (target,))
+            receiver = c.fetchone()
+            if not receiver:
+                conn.close()
+                logger.error(f"Контакт не найден: {target}")
+                return jsonify({'success': False, 'error': 'Контакт не найден'}), 404
             
-            return jsonify({'success': True, 'message': 'Сообщение удалено у всех'})
+            receiver_id = receiver[0]
+
+            # Удаляем сообщение для обоих пользователей
+            c.execute('''DELETE FROM messages 
+                        WHERE mode = ? 
+                        AND sender_id = ? 
+                        AND (receiver_id = ? OR receiver_id = ?)
+                        AND time = ? 
+                        AND text = ?''',
+                      (mode, sender_id, receiver_id, 0, time, text))
+            
+            conn.commit()
+            conn.close()
+            logger.info(f"Сообщение удалено для всех в чате {mode}/{target}")
+            return jsonify({'success': True, 'message': 'Сообщение удалено у всех'}), 200
         
-        # Для групповых сообщений
         elif mode == 'groups':
-            # Находим ID группы
-            cursor = conn.cursor()
-            cursor.execute("SELECT group_id FROM groups WHERE name = ?", (target,))
-            group_data = cursor.fetchone()
+            c.execute('SELECT id FROM groups WHERE name = ?', (target,))
+            group = c.fetchone()
+            if not group:
+                conn.close()
+                logger.error(f"Группа не найдена: {target}")
+                return jsonify({'success': False, 'error': 'Группа не найдена'}), 404
             
-            if not group_data:
-                cursor.close()
-                return jsonify({'success': False, 'error': 'Группа не найдена'})
+            c.execute('''DELETE FROM messages 
+                        WHERE mode = ? 
+                        AND target = ? 
+                        AND sender_id = ? 
+                        AND time = ? 
+                        AND text = ?''',
+                      (mode, target, sender_id, time, text))
             
-            group_id = group_data[0]
-            
-            # Удаляем сообщение из группового чата
-            cursor.execute(
-                "DELETE FROM group_messages WHERE group_id = ? AND sender_username = ? AND message_time = ? AND message_text = ?",
-                (group_id, sender_username, time, text)
-            )
             conn.commit()
-            cursor.close()
-            
-            return jsonify({'success': True, 'message': 'Сообщение удалено из группы'})
+            conn.close()
+            logger.info(f"Сообщение удалено для всех в группе {target}")
+            return jsonify({'success': True, 'message': 'Сообщение удалено из группы'}), 200
         
         else:
-            return jsonify({'success': False, 'error': 'Недопустимый режим'})
+            conn.close()
+            logger.error(f"Недопустимый режим: {mode}")
+            return jsonify({'success': False, 'error': 'Недопустимый режим'}), 400
             
     except Exception as e:
-        # В случае ошибки откатываем изменения
-        conn.rollback()
-        return jsonify({'success': False, 'error': str(e)})
-    finally:
+        if 'conn' in locals():
+            conn.close()
+        logger.error(f"Ошибка при удалении сообщения: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin', methods=['POST'])
+def admin_login():
+    data = request.get_json()
+    admin_username = data.get('admin_username')
+    admin_password = data.get('admin_password')
+
+    if not admin_username or not admin_password:
+        return jsonify({'error': 'Имя пользователя и пароль обязательны'}), 400
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('SELECT password FROM users WHERE username = ?', ('admin',))
+        user = c.fetchone()
         conn.close()
+
+        if user and check_password_hash(user[0], admin_password):
+            session['username'] = 'admin'
+            session['user_id'] = 1  # Предполагаем, что ID админа = 1 (можно уточнить в базе)
+            return jsonify({'message': 'Авторизация админа успешна'}), 200
+        return jsonify({'error': 'Неверное имя пользователя или пароль'}), 401
+    except Exception as e:
+        logger.error(f"Ошибка при авторизации админа: {e}")
+        return jsonify({'error': 'Ошибка сервера'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

@@ -58,6 +58,7 @@ form.sign-up-form {
 
 form.sign-in-form {
   z-index: 2;
+  position: relative;
 }
 
 .title {
@@ -95,6 +96,11 @@ form.sign-in-form {
   font-weight: 600;
   font-size: 1.1rem;
   color: #333;
+}
+
+.input-field input[readonly] {
+  color: #666;
+  cursor: not-allowed;
 }
 
 .input-field input::placeholder {
@@ -149,6 +155,26 @@ form.sign-in-form {
 
 .btn:hover {
   background-color: #4d84e2;
+}
+
+.admin-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #5995fd;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: "Poppins", sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.admin-btn:hover {
+  background: #4d84e2;
 }
 
 .panels-container {
@@ -402,6 +428,7 @@ form.sign-in-form {
     left: 50%;
   }
 }
+
 /* ===== Modal Reset Password Styling ===== */
 .modal {
   display: none;
@@ -483,4 +510,126 @@ form.sign-in-form {
 
 .forgot-password:hover {
   color: #4d84e2;
+}
+
+/* ===== Admin Modal Styling ===== */
+.admin-modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.admin-modal-content {
+  background-color: #fff;
+  margin: 5% auto;
+  border-radius: 10px;
+  width: 60%;
+  max-width: 800px;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.admin-panels-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  height: 400px;
+}
+
+.admin-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.admin-left-panel {
+  background-image: linear-gradient(-45deg, #4481eb 0%, #04befe 100%);
+  border-radius: 10px 0 0 10px;
+}
+
+.admin-right-panel {
+  background-color: #fff;
+  border-radius: 0 10px 10px 0;
+}
+
+.admin-content {
+  color: #fff;
+}
+
+.admin-content h3 {
+  font-weight: 600;
+  line-height: 1;
+  font-size: 2rem;
+}
+
+.admin-sign-in-form {
+  padding: 0 2rem;
+}
+
+.admin-close {
+  position: absolute;
+  right: 15px;
+  top: 15px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #999;
+  cursor: pointer;
+}
+
+.admin-close:hover {
+  color: #000;
+}
+
+@media (max-width: 870px) {
+  .admin-modal-content {
+    width: 90%;
+    height: auto;
+  }
+
+  .admin-panels-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 2fr;
+    height: auto;
+  }
+
+  .admin-left-panel {
+    grid-row: 1 / 2;
+    padding: 2rem;
+    border-radius: 10px 10px 0 0;
+  }
+
+  .admin-right-panel {
+    grid-row: 2 / 3;
+    padding: 2rem;
+    border-radius: 0 0 10px 10px;
+  }
+
+  .admin-content h3 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 570px) {
+  .admin-modal-content {
+    width: 95%;
+  }
+
+  .admin-sign-in-form {
+    padding: 0 1.5rem;
+  }
+
+  .admin-left-panel {
+    padding: 1.5rem;
+  }
+
+  .admin-content h3 {
+    font-size: 1.2rem;
+  }
 }
