@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="/static/style.css" />
   <title>Sign in & Sign up Form</title>
+
 </head>
 
 <body>
@@ -17,7 +18,6 @@
     <div class="forms-container">
       <div class="signin-signup">
         <form action="#" class="sign-in-form">
-          <button class="admin-btn" onclick="openAdminModal()">Admin</button>
           <h2 class="title">Sign in</h2>
           <div class="input-field">
             <i class="fas fa-user"></i>
@@ -80,7 +80,7 @@
   <!-- MODAL FOR PASSWORD RESET -->
   <div id="resetModal" class="modal">
     <div class="modal-content">
-      <span class="close" onclick="closeModal()">×</span>
+      <span class="close" onclick="closeModal()">&times;</span>
       <h3>Reset Password</h3>
       <input type="email" id="resetEmail" placeholder="Enter your email" />
       <button onclick="requestReset()">Send Code</button>
@@ -90,34 +90,6 @@
         <input type="password" id="newPassword" placeholder="Enter new password" />
         <button onclick="submitNewPassword()">Change Password</button>
       </div>
-    </div>
-  </div>
-
-  <!-- MODAL FOR ADMIN LOGIN -->
-  <div id="adminModal" class="admin-modal">
-    <div class="admin-modal-content">
-      <div class="admin-panels-container">
-        <div class="admin-panel admin-left-panel">
-          <div class="admin-content">
-            <h3>Welcome admin</h3>
-          </div>
-        </div>
-        <div class="admin-panel admin-right-panel">
-          <form action="/admin" method="POST" class="admin-sign-in-form">
-            <h2 class="title">Sign in</h2>
-            <div class="input-field">
-              <i class="fas fa-user"></i>
-              <input type="text" name="admin_username" placeholder="admin" readonly />
-            </div>
-            <div class="input-field">
-              <i class="fas fa-lock"></i>
-              <input type="password" name="admin_password" placeholder="password" required />
-            </div>
-            <input type="submit" value="Sign in" class="btn solid" />
-          </form>
-        </div>
-      </div>
-      <span class="admin-close" onclick="closeAdminModal()">×</span>
     </div>
   </div>
 
@@ -176,14 +148,6 @@
       } else {
         alert(data.error);
       }
-    }
-
-    function openAdminModal() {
-      document.getElementById('adminModal').style.display = 'block';
-    }
-
-    function closeAdminModal() {
-      document.getElementById('adminModal').style.display = 'none';
     }
   </script>
 </body>

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -109,14 +109,6 @@ def init_db():
     c.execute("UPDATE messages SET status = 'sent' WHERE status = 'unread'")
     logger.info("Обновлены статусы сообщений: 'unread' заменен на 'sent'")
 
-    # Добавляем админа, если его нет
-    c.execute('SELECT id FROM users WHERE username = ?', ('admin',))
-    if not c.fetchone():
-        admin_password = generate_password_hash('password', method='pbkdf2:sha256')
-        c.execute('INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-                  ('admin', 'admin@example.com', admin_password))
-        logger.info("Админ учетная запись создана")
-
     conn.commit()
     conn.close()
 
@@ -152,8 +144,6 @@ def index():
 
 @app.route('/chat')
 def chat():
-    if 'username' not in session or session['username'] != 'admin':
-        return redirect(url_for('index'))
     return render_template('chat.html')
 
 @app.route('/api/register', methods=['POST'])
@@ -1085,31 +1075,6 @@ def delete_message_for_all():
             conn.close()
         logger.error(f"Ошибка при удалении сообщения: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/admin', methods=['POST'])
-def admin_login():
-    data = request.get_json()
-    admin_username = data.get('admin_username')
-    admin_password = data.get('admin_password')
-
-    if not admin_username or not admin_password:
-        return jsonify({'error': 'Имя пользователя и пароль обязательны'}), 400
-
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('SELECT password FROM users WHERE username = ?', ('admin',))
-        user = c.fetchone()
-        conn.close()
-
-        if user and check_password_hash(user[0], admin_password):
-            session['username'] = 'admin'
-            session['user_id'] = 1  # Предполагаем, что ID админа = 1 (можно уточнить в базе)
-            return jsonify({'message': 'Авторизация админа успешна'}), 200
-        return jsonify({'error': 'Неверное имя пользователя или пароль'}), 401
-    except Exception as e:
-        logger.error(f"Ошибка при авторизации админа: {e}")
-        return jsonify({'error': 'Ошибка сервера'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
